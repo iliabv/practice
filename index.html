@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dutch Pronunciation Practice</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header>
+    <h1>Dutch Pronunciation Practice</h1>
+    <div class="api-key-row">
+      <label for="api-key-input">ElevenLabs API Key</label>
+      <input type="password" id="api-key-input" placeholder="Enter your API key">
+    </div>
+  </header>
+
+  <div id="banner" class="banner hidden"></div>
+
+  <main id="app">
+    <!-- Input view -->
+    <div id="input-view">
+      <textarea id="text-input" placeholder="Paste Dutch text here…" rows="10"></textarea>
+      <button id="start-btn">Start Practice</button>
+    </div>
+
+    <!-- Practice view -->
+    <div id="practice-view" class="hidden">
+      <div class="practice-grid">
+        <div class="sentences-panel" id="sentences-panel"></div>
+        <div class="player-panel" id="player-panel">
+          <p class="player-placeholder">Click a sentence to begin</p>
+        </div>
+      </div>
+      <button id="back-btn">← Back to text</button>
+    </div>
+  </main>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
