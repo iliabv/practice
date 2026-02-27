@@ -1,6 +1,14 @@
-import { loopColor } from './state.js';
-
 const $ = (sel) => document.querySelector(sel);
+
+/**
+ * Compute sentence background color from loop count.
+ * orange (hsl 30) at 0-1 loops → green (hsl 120) at 5+ loops.
+ */
+function loopColor(loopCount) {
+  if (loopCount === 0) return 'transparent';
+  const hue = 30 + Math.min(loopCount / 5, 1) * 90;
+  return `hsl(${hue}, 70%, 30%)`;
+}
 
 export const els = {
   get apiKeyInput() { return $('#api-key-input'); },
@@ -79,7 +87,7 @@ export function updateSentenceColor(index, loopCount) {
  */
 export function renderPlayer({ phase, loopCount, onPlay }) {
   const isRecording = phase === 'recording';
-  const isIdle = phase === 'idle' || phase === 'stopped';
+  const isIdle = phase === 'idle';
   const disabled = !isIdle && !isRecording;
 
   const icon = isRecording ? '⏹' : '▶';
@@ -87,7 +95,6 @@ export function renderPlayer({ phase, loopCount, onPlay }) {
 
   let phaseText = '';
   if (phase === 'playing-original') phaseText = 'Playing original…';
-  else if (phase === 'beeping') phaseText = 'Get ready…';
   else if (phase === 'recording') phaseText = 'Recording…';
   else if (phase === 'playing-user') phaseText = 'Playing your recording…';
 

@@ -22,7 +22,7 @@ export function createState() {
     sentenceProgress: stored?.sentenceProgress || [],
     // Runtime-only (not persisted)
     activeSentenceIndex: -1,
-    phase: 'idle', // idle | playing-original | beeping | recording | stopped | playing-user
+    phase: 'idle', // idle | playing-original | recording | playing-user
     userRecording: null, // Blob
   };
 
@@ -76,14 +76,4 @@ export function createState() {
       localStorage.removeItem(STORAGE_KEY);
     },
   };
-}
-
-/**
- * Compute sentence background color from loop count.
- * orange (hsl 30) at 0-1 loops → green (hsl 120) at 5+ loops.
- */
-export function loopColor(loopCount) {
-  if (loopCount === 0) return 'transparent';
-  const hue = 30 + Math.min(loopCount / 5, 1) * 90;
-  return `hsl(${hue}, 70%, 30%)`;
 }
