@@ -12,6 +12,9 @@ function loopColor(loopCount) {
 
 export const els = {
   get apiKeyInput() { return $('#api-key-input'); },
+  get voiceSelect() { return $('#voice-select'); },
+  get speedRange() { return $('#speed-range'); },
+  get speedValue() { return $('#speed-value'); },
   get banner() { return $('#banner'); },
   get inputView() { return $('#input-view'); },
   get textInput() { return $('#text-input'); },
@@ -128,7 +131,6 @@ export function renderPlayer({ phase, loopCount, onPlay }) {
   const disabled = !isIdle && !isRecording;
 
   const icon = isRecording ? '⏹' : '▶';
-  const btnClass = `play-btn${isRecording ? ' recording' : ''}`;
 
   let phaseText = '';
   if (phase === 'playing-original') phaseText = 'Playing…';
@@ -138,13 +140,15 @@ export function renderPlayer({ phase, loopCount, onPlay }) {
 
   const player = els.inlinePlayer;
   player.innerHTML = `
-    <button class="${btnClass}" ${disabled ? 'disabled' : ''} id="play-btn">${icon}</button>
+    <span class="play-icon${isRecording ? ' recording' : ''}">${icon}</span>
     <span class="loop-counter">${loopCount}x</span>
     ${phaseText ? `<span class="phase-label">${phaseText}</span>` : ''}
   `;
+  player.classList.toggle('disabled', disabled);
+  player.classList.toggle('recording', isRecording);
   player.classList.remove('hidden');
 
-  $('#play-btn').addEventListener('click', onPlay);
+  player.onclick = disabled ? null : onPlay;
   positionInlinePlayer();
 }
 

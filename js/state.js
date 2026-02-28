@@ -47,6 +47,8 @@ export function createState() {
     apiKey: stored?.apiKey || '',
     activeTextId: stored?.activeTextId || null,
     texts: stored?.texts || [],
+    voiceId: stored?.voiceId || 'EXAVITQu4vr4xnSDxMaL',
+    speed: stored?.speed ?? 1.0,
     // Runtime-only (not persisted)
     activeSentenceIndex: -1,
     phase: 'idle',
@@ -67,6 +69,16 @@ export function createState() {
 
     setApiKey(key) {
       state.apiKey = key;
+      this.persist();
+    },
+
+    setVoiceId(id) {
+      state.voiceId = id;
+      this.persist();
+    },
+
+    setSpeed(speed) {
+      state.speed = speed;
       this.persist();
     },
 
@@ -145,6 +157,8 @@ export function createState() {
         apiKey: state.apiKey,
         activeTextId: state.activeTextId,
         texts: state.texts,
+        voiceId: state.voiceId,
+        speed: state.speed,
       });
     },
 

@@ -11,9 +11,19 @@
 <body>
   <header>
     <h1>Dutch Pronunciation Practice</h1>
-    <div class="api-key-row">
-      <label for="api-key-input">ElevenLabs API Key</label>
-      <input type="password" id="api-key-input" placeholder="Enter your API key">
+    <div class="header-controls">
+      <div class="control-row">
+        <label for="api-key-input">API Key</label>
+        <input type="password" id="api-key-input" placeholder="Enter your API key">
+      </div>
+      <div class="control-row">
+        <label for="voice-select">Voice</label>
+        <select id="voice-select"></select>
+      </div>
+      <div class="control-row">
+        <label for="speed-range">Speed <span id="speed-value">1.0</span></label>
+        <input type="range" id="speed-range" min="0.7" max="1.2" step="0.05" value="1.0">
+      </div>
     </div>
   </header>
 

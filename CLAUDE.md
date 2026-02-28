@@ -33,7 +33,7 @@ Requires an ElevenLabs API key and microphone access for full functionality.
 - **`main.js`** — Orchestration, event listeners, practice loop lifecycle, keyboard shortcuts (Space/Arrow keys/Enter/Backspace)
 - **`state.js`** — Centralized state with getter/setter pattern; persistent fields auto-save to localStorage (key: `'dutch-practice'`)
 - **`ui.js`** — DOM manipulation, view switching (input ↔ practice), sentence rendering with color coding by loop count
-- **`elevenlabs.js`** — ElevenLabs TTS API v1 integration with in-memory cache; voice "Sarah", model `eleven_multilingual_v2`
+- **`elevenlabs.js`** — ElevenLabs TTS API v1 integration with in-memory cache; exports `VOICES` list, `textToSpeech`, and `clearTTSCache`; model `eleven_multilingual_v2`; voice and speed are configurable
 - **`recorder.js`** — Web Audio MediaRecorder wrapper, returns Promise resolving to audio Blob
 - **`audio-utils.js`** — Audio playback (`playBlob`, `playBeep`, `stopPlayback`) with settled-flag race condition prevention
 - **`sentence-parser.js`** — Splits text on sentence boundaries using lookbehind regex

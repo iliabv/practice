@@ -1,6 +1,6 @@
 import { parseSentences } from './sentence-parser.js';
 import { createState } from './state.js';
-import { textToSpeech } from './elevenlabs.js';
+import { textToSpeech, clearTTSCache, VOICES } from './elevenlabs.js';
 import { startRecording, stopRecording } from './recorder.js';
 import { playBlob, playBeep, stopPlayback } from './audio-utils.js';
 import {
@@ -14,10 +14,25 @@ const state = createState();
 let sentences = [];
 let loopGeneration = 0;
 
+// --- Populate voice selector ---
+function initVoiceSelect() {
+  const select = els.voiceSelect;
+  VOICES.forEach((v) => {
+    const opt = document.createElement('option');
+    opt.value = v.id;
+    opt.textContent = v.name;
+    select.appendChild(opt);
+  });
+  select.value = state.get().voiceId;
+}
+
 // --- Restore persisted state ---
 function init() {
   const s = state.get();
   els.apiKeyInput.value = s.apiKey;
+  initVoiceSelect();
+  els.speedRange.value = s.speed;
+  els.speedValue.textContent = s.speed.toFixed(1);
 
   const active = state.getActiveText();
   if (active) {
@@ -41,6 +56,20 @@ function refreshHistory() {
 // --- API key ---
 els.apiKeyInput.addEventListener('input', () => {
   state.setApiKey(els.apiKeyInput.value.trim());
+});
+
+// --- Voice selector ---
+els.voiceSelect.addEventListener('change', () => {
+  state.setVoiceId(els.voiceSelect.value);
+  clearTTSCache();
+});
+
+// --- Speed slider ---
+els.speedRange.addEventListener('input', () => {
+  const speed = parseFloat(els.speedRange.value);
+  els.speedValue.textContent = speed.toFixed(1);
+  state.setSpeed(speed);
+  clearTTSCache();
 });
 
 // --- Start button ---
@@ -148,6 +177,8 @@ async function runLoop() {
     const audioBlob = await textToSpeech(sentenceText, apiKey, {
       previousText: sentences[index - 1],
       nextText: sentences[index + 1],
+      voiceId: s.voiceId,
+      speed: s.speed,
     });
     if (cancelled()) return;
     await playBlob(audioBlob);
