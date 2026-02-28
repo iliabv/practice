@@ -55,7 +55,7 @@ function init() {
       return;
     }
   }
-  showInputView(active?.text || '');
+  showInputView('');
   refreshHistory();
 }
 

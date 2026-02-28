@@ -42,7 +42,7 @@ export function hideBanner() {
 export function showInputView(text) {
   els.inputView.classList.remove('hidden');
   els.practiceView.classList.add('hidden');
-  if (text) els.textInput.value = text;
+  els.textInput.value = text;
 }
 
 /** Switch to practice view. */
