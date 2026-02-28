@@ -18,7 +18,7 @@ export const els = {
   get startBtn() { return $('#start-btn'); },
   get practiceView() { return $('#practice-view'); },
   get sentencesPanel() { return $('#sentences-panel'); },
-  get playerPanel() { return $('#player-panel'); },
+  get inlinePlayer() { return $('#inline-player'); },
   get backBtn() { return $('#back-btn'); },
 };
 
@@ -53,6 +53,12 @@ export function showPracticeView() {
  * @param {function} onClick - called with sentence index
  */
 export function renderSentences(sentences, progress, onClick) {
+  // Detach inline player before clearing
+  const player = els.inlinePlayer;
+  if (player.parentNode === els.sentencesPanel) {
+    els.sentencesPanel.removeChild(player);
+  }
+
   els.sentencesPanel.innerHTML = '';
   sentences.forEach((text, i) => {
     const span = document.createElement('span');
@@ -64,6 +70,9 @@ export function renderSentences(sentences, progress, onClick) {
     if (i > 0) els.sentencesPanel.appendChild(document.createTextNode(' '));
     els.sentencesPanel.appendChild(span);
   });
+
+  // Re-append inline player
+  els.sentencesPanel.appendChild(player);
 }
 
 /** Highlight the active sentence and remove highlight from others. */
@@ -71,6 +80,7 @@ export function setActiveSentence(index) {
   els.sentencesPanel.querySelectorAll('.sentence').forEach((span) => {
     span.classList.toggle('active', Number(span.dataset.index) === index);
   });
+  positionInlinePlayer();
 }
 
 /** Update a single sentence's background color. */
@@ -80,7 +90,32 @@ export function updateSentenceColor(index, loopCount) {
 }
 
 /**
- * Render the player panel for a selected sentence.
+ * Position the inline player below the active sentence.
+ */
+function positionInlinePlayer() {
+  const active = els.sentencesPanel.querySelector('.sentence.active');
+  const player = els.inlinePlayer;
+  if (!active || player.classList.contains('hidden')) return;
+
+  const sentenceRect = active.getBoundingClientRect();
+  const panelRect = els.sentencesPanel.getBoundingClientRect();
+
+  // Position below the active sentence, aligned to its left edge
+  let left = sentenceRect.left - panelRect.left;
+  const top = sentenceRect.bottom - panelRect.top + 6;
+
+  // Keep it within the panel bounds
+  const playerWidth = player.offsetWidth;
+  if (left + playerWidth > panelRect.width) {
+    left = Math.max(0, panelRect.width - playerWidth);
+  }
+
+  player.style.top = `${top}px`;
+  player.style.left = `${left}px`;
+}
+
+/**
+ * Render the inline player for a selected sentence.
  * @param {object} opts
  * @param {string} opts.phase
  * @param {number} opts.loopCount
@@ -95,21 +130,27 @@ export function renderPlayer({ phase, loopCount, onPlay }) {
   const btnClass = `play-btn${isRecording ? ' recording' : ''}`;
 
   let phaseText = '';
-  if (phase === 'playing-original') phaseText = 'Playing original…';
-  else if (phase === 'beeping') phaseText = 'Get ready…';
+  if (phase === 'playing-original') phaseText = 'Playing…';
+  else if (phase === 'beeping') phaseText = 'Ready…';
   else if (phase === 'recording') phaseText = 'Recording…';
-  else if (phase === 'playing-user') phaseText = 'Playing your recording…';
+  else if (phase === 'playing-user') phaseText = 'Your recording…';
 
-  els.playerPanel.innerHTML = `
+  const player = els.inlinePlayer;
+  player.innerHTML = `
     <button class="${btnClass}" ${disabled ? 'disabled' : ''} id="play-btn">${icon}</button>
-    <div class="loop-counter">Loops: ${loopCount}</div>
-    <div class="phase-label">${phaseText}</div>
+    <span class="loop-counter">${loopCount}x</span>
+    ${phaseText ? `<span class="phase-label">${phaseText}</span>` : ''}
   `;
+  player.classList.remove('hidden');
 
   $('#play-btn').addEventListener('click', onPlay);
+  positionInlinePlayer();
 }
 
-/** Show the placeholder in the player panel. */
+/** Hide the inline player. */
 export function clearPlayer() {
-  els.playerPanel.innerHTML = '<p class="player-placeholder">Click a sentence to begin</p>';
+  els.inlinePlayer.classList.add('hidden');
+  els.inlinePlayer.innerHTML = '';
 }
+
+window.addEventListener('resize', positionInlinePlayer);
