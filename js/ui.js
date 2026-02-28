@@ -2,12 +2,15 @@ const $ = (sel) => document.querySelector(sel);
 
 /**
  * Compute sentence background color from loop count.
- * orange (hsl 30) at 0-1 loops → green (hsl 120) at 5+ loops.
+ * Subtle bg at 0 → orange at 1 → gradually to dark green at 10+ loops.
  */
 function loopColor(loopCount) {
-  if (loopCount === 0) return 'transparent';
-  const hue = 30 + Math.min(loopCount / 5, 1) * 90;
-  return `hsl(${hue}, 70%, 30%)`;
+  if (loopCount === 0) return 'hsl(240, 25%, 18%)';
+  const t = Math.min(loopCount / 10, 1);
+  const hue = 30 + t * 90;   // 30° (orange) → 120° (green)
+  const sat = 70;
+  const lit = 25 + t * 5;    // 25% → 30%
+  return `hsl(${hue}, ${sat}%, ${lit}%)`;
 }
 
 export const els = {
