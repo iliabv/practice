@@ -20,6 +20,7 @@ export const els = {
   get sentencesPanel() { return $('#sentences-panel'); },
   get inlinePlayer() { return $('#inline-player'); },
   get backBtn() { return $('#back-btn'); },
+  get historyList() { return $('#history-list'); },
 };
 
 /** Show an error banner. Click to dismiss. */
@@ -151,6 +152,47 @@ export function renderPlayer({ phase, loopCount, onPlay }) {
 export function clearPlayer() {
   els.inlinePlayer.classList.add('hidden');
   els.inlinePlayer.innerHTML = '';
+}
+
+/** Render history list below the textarea. */
+export function renderHistory(texts, { onClick, onDelete }) {
+  const container = els.historyList;
+  container.innerHTML = '';
+  if (texts.length === 0) return;
+
+  const heading = document.createElement('h3');
+  heading.className = 'history-heading';
+  heading.textContent = 'History';
+  container.appendChild(heading);
+
+  // Show newest first
+  [...texts].reverse().forEach((entry) => {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.addEventListener('click', () => onClick(entry.id));
+
+    const preview = document.createElement('span');
+    preview.className = 'history-preview';
+    const truncated = entry.text.length > 80 ? entry.text.slice(0, 80) + '…' : entry.text;
+    preview.textContent = truncated;
+
+    const meta = document.createElement('span');
+    meta.className = 'history-meta';
+    meta.textContent = `${entry.sentenceProgress.length} sentences`;
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'history-delete';
+    deleteBtn.textContent = '×';
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onDelete(entry.id);
+    });
+
+    item.appendChild(preview);
+    item.appendChild(meta);
+    item.appendChild(deleteBtn);
+    container.appendChild(item);
+  });
 }
 
 window.addEventListener('resize', positionInlinePlayer);

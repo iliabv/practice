@@ -7,7 +7,7 @@ import {
   els, showBanner, hideBanner,
   showInputView, showPracticeView,
   renderSentences, setActiveSentence, updateSentenceColor,
-  renderPlayer, clearPlayer,
+  renderPlayer, clearPlayer, renderHistory,
 } from './ui.js';
 
 const state = createState();
@@ -19,14 +19,23 @@ function init() {
   const s = state.get();
   els.apiKeyInput.value = s.apiKey;
 
-  if (s.text && s.sentenceProgress.length > 0) {
-    sentences = parseSentences(s.text);
-    if (sentences.length === s.sentenceProgress.length) {
-      enterPracticeView(s.text);
+  const active = state.getActiveText();
+  if (active) {
+    sentences = parseSentences(active.text);
+    if (sentences.length === active.sentenceProgress.length) {
+      enterPracticeView(active.text);
       return;
     }
   }
-  showInputView(s.text);
+  showInputView(active?.text || '');
+  refreshHistory();
+}
+
+function refreshHistory() {
+  renderHistory(state.getTexts(), {
+    onClick: onHistoryClick,
+    onDelete: onHistoryDelete,
+  });
 }
 
 // --- API key ---
@@ -58,16 +67,31 @@ els.backBtn.addEventListener('click', () => {
   stopPlayback();
   stopRecording();
   loopGeneration++;
-  showInputView(state.get().text);
+  state.clearActiveText();
+  showInputView('');
   clearPlayer();
-  state.setActiveSentence(-1);
+  refreshHistory();
 });
 
 function enterPracticeView(text) {
   els.textInput.value = text;
   showPracticeView();
-  renderSentences(sentences, state.get().sentenceProgress, onSentenceClick);
+  const active = state.getActiveText();
+  renderSentences(sentences, active.sentenceProgress, onSentenceClick);
   clearPlayer();
+}
+
+// --- History handlers ---
+function onHistoryClick(id) {
+  state.setActiveTextId(id);
+  const active = state.getActiveText();
+  sentences = parseSentences(active.text);
+  enterPracticeView(active.text);
+}
+
+function onHistoryDelete(id) {
+  state.deleteText(id);
+  refreshHistory();
 }
 
 // --- Sentence click ---
@@ -157,7 +181,8 @@ async function runLoop() {
     // Done
     state.incrementLoop(index);
     state.setPhase('idle');
-    updateSentenceColor(index, s.sentenceProgress[index].loopCount);
+    const active = state.getActiveText();
+    updateSentenceColor(index, active.sentenceProgress[index].loopCount);
     updatePlayer();
   } catch (err) {
     if (cancelled()) return;
@@ -178,7 +203,12 @@ function updatePlayer() {
     clearPlayer();
     return;
   }
-  const progress = s.sentenceProgress[s.activeSentenceIndex];
+  const active = state.getActiveText();
+  if (!active) {
+    clearPlayer();
+    return;
+  }
+  const progress = active.sentenceProgress[s.activeSentenceIndex];
   renderPlayer({
     phase: s.phase,
     loopCount: progress?.loopCount || 0,

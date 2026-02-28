@@ -1,9 +1,36 @@
 const STORAGE_KEY = 'dutch-practice';
 
+function generateId() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+
+    // Migrate old format: { apiKey, text, sentenceProgress } → new format
+    if (data.text !== undefined && data.texts === undefined) {
+      const migrated = {
+        apiKey: data.apiKey || '',
+        activeTextId: null,
+        texts: [],
+      };
+      if (data.text) {
+        const id = generateId();
+        migrated.texts.push({
+          id,
+          text: data.text,
+          sentenceProgress: data.sentenceProgress || [],
+          createdAt: Date.now(),
+        });
+        migrated.activeTextId = id;
+      }
+      return migrated;
+    }
+
+    return data;
   } catch {
     return null;
   }
@@ -18,16 +45,25 @@ export function createState() {
 
   const state = {
     apiKey: stored?.apiKey || '',
-    text: stored?.text || '',
-    sentenceProgress: stored?.sentenceProgress || [],
+    activeTextId: stored?.activeTextId || null,
+    texts: stored?.texts || [],
     // Runtime-only (not persisted)
     activeSentenceIndex: -1,
-    phase: 'idle', // idle | playing-original | beeping | recording | playing-user
-    userRecording: null, // Blob
+    phase: 'idle',
+    userRecording: null,
   };
 
   return {
     get: () => state,
+
+    getActiveText() {
+      if (!state.activeTextId) return null;
+      return state.texts.find((t) => t.id === state.activeTextId) || null;
+    },
+
+    getTexts() {
+      return state.texts;
+    },
 
     setApiKey(key) {
       state.apiKey = key;
@@ -35,11 +71,50 @@ export function createState() {
     },
 
     setText(text, sentenceCount) {
-      state.text = text;
-      state.sentenceProgress = Array.from({ length: sentenceCount }, () => ({ loopCount: 0 }));
+      // Reuse existing entry with same text
+      let entry = state.texts.find((t) => t.text === text);
+      if (entry) {
+        // If sentence count changed, reset progress
+        if (entry.sentenceProgress.length !== sentenceCount) {
+          entry.sentenceProgress = Array.from({ length: sentenceCount }, () => ({ loopCount: 0 }));
+        }
+      } else {
+        entry = {
+          id: generateId(),
+          text,
+          sentenceProgress: Array.from({ length: sentenceCount }, () => ({ loopCount: 0 })),
+          createdAt: Date.now(),
+        };
+        state.texts.push(entry);
+      }
+      state.activeTextId = entry.id;
       state.activeSentenceIndex = -1;
       state.phase = 'idle';
       state.userRecording = null;
+      this.persist();
+    },
+
+    setActiveTextId(id) {
+      state.activeTextId = id;
+      state.activeSentenceIndex = -1;
+      state.phase = 'idle';
+      state.userRecording = null;
+      this.persist();
+    },
+
+    clearActiveText() {
+      state.activeTextId = null;
+      state.activeSentenceIndex = -1;
+      state.phase = 'idle';
+      state.userRecording = null;
+      this.persist();
+    },
+
+    deleteText(id) {
+      state.texts = state.texts.filter((t) => t.id !== id);
+      if (state.activeTextId === id) {
+        state.activeTextId = null;
+      }
       this.persist();
     },
 
@@ -54,8 +129,9 @@ export function createState() {
     },
 
     incrementLoop(index) {
-      if (state.sentenceProgress[index]) {
-        state.sentenceProgress[index].loopCount++;
+      const active = this.getActiveText();
+      if (active?.sentenceProgress[index]) {
+        active.sentenceProgress[index].loopCount++;
         this.persist();
       }
     },
@@ -67,8 +143,8 @@ export function createState() {
     persist() {
       save({
         apiKey: state.apiKey,
-        text: state.text,
-        sentenceProgress: state.sentenceProgress,
+        activeTextId: state.activeTextId,
+        texts: state.texts,
       });
     },
 
