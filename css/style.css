@@ -8,7 +8,9 @@
   --radius: 8px;
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -98,7 +100,8 @@ main {
   resize: vertical;
 }
 
-#start-btn, #back-btn {
+#start-btn,
+#back-btn {
   margin-top: 0.75rem;
   padding: 0.6rem 1.5rem;
   border: none;
@@ -110,7 +113,8 @@ main {
   transition: opacity 0.15s;
 }
 
-#start-btn:hover, #back-btn:hover {
+#start-btn:hover,
+#back-btn:hover {
   opacity: 0.85;
 }
 
@@ -142,7 +146,6 @@ main {
 .sentence {
   display: inline;
   padding: 0.2rem 0.15rem;
-  margin: 0 0.35rem;
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.3s, outline-color 0.15s;
@@ -208,8 +211,15 @@ main {
 }
 
 @keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.4); }
-  50% { box-shadow: 0 0 0 12px rgba(255, 68, 68, 0); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 12px rgba(255, 68, 68, 0);
+  }
 }
 
 .loop-counter {

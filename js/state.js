@@ -22,7 +22,7 @@ export function createState() {
     sentenceProgress: stored?.sentenceProgress || [],
     // Runtime-only (not persisted)
     activeSentenceIndex: -1,
-    phase: 'idle', // idle | playing-original | recording | playing-user
+    phase: 'idle', // idle | playing-original | beeping | recording | playing-user
     userRecording: null, // Blob
   };
 

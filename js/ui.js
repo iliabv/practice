@@ -61,6 +61,7 @@ export function renderSentences(sentences, progress, onClick) {
     span.dataset.index = i;
     span.style.backgroundColor = loopColor(progress[i]?.loopCount || 0);
     span.addEventListener('click', () => onClick(i));
+    if (i > 0) els.sentencesPanel.appendChild(document.createTextNode(' '));
     els.sentencesPanel.appendChild(span);
   });
 }
@@ -95,6 +96,7 @@ export function renderPlayer({ phase, loopCount, onPlay }) {
 
   let phaseText = '';
   if (phase === 'playing-original') phaseText = 'Playing original…';
+  else if (phase === 'beeping') phaseText = 'Get ready…';
   else if (phase === 'recording') phaseText = 'Recording…';
   else if (phase === 'playing-user') phaseText = 'Playing your recording…';
 

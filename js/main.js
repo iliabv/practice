@@ -2,7 +2,7 @@ import { parseSentences } from './sentence-parser.js';
 import { createState } from './state.js';
 import { textToSpeech } from './elevenlabs.js';
 import { startRecording, stopRecording } from './recorder.js';
-import { playBlob, stopPlayback } from './audio-utils.js';
+import { playBlob, playBeep, stopPlayback } from './audio-utils.js';
 import {
   els, showBanner, hideBanner,
   showInputView, showPracticeView,
@@ -126,20 +126,34 @@ async function runLoop() {
     await playBlob(audioBlob);
     if (cancelled()) return;
 
-    // 2. Record
+    // 2. Start-recording beep
+    state.setPhase('beeping');
+    updatePlayer();
+    await playBeep();
+    if (cancelled()) return;
+    await sleep(300);
+    if (cancelled()) return;
+
+    // 3. Record
     state.setPhase('recording');
     updatePlayer();
     const userBlob = await startRecording();
     if (cancelled()) return;
 
-    // 3. Play user's recording back
+    // 4. End-recording beep
     state.setUserRecording(userBlob);
+    state.setPhase('beeping');
+    updatePlayer();
+    await playBeep(200, 660);
+    if (cancelled()) return;
+
+    // 5. Play user's recording back
     state.setPhase('playing-user');
     updatePlayer();
     await playBlob(userBlob);
     if (cancelled()) return;
 
-    // 4. Play original again
+    // 6. Play original again
     state.setPhase('playing-original');
     updatePlayer();
     await playBlob(audioBlob);
@@ -175,6 +189,10 @@ function updatePlayer() {
     loopCount: progress?.loopCount || 0,
     onPlay: onPlayStop,
   });
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // --- Keyboard shortcuts ---
