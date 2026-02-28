@@ -131,19 +131,24 @@ function positionInlinePlayer() {
 export function renderPlayer({ phase, loopCount, onPlay }) {
   const isRecording = phase === 'recording';
   const isIdle = phase === 'idle';
+  const isLoading = phase === 'loading';
   const disabled = !isIdle && !isRecording;
 
-  const icon = isRecording ? '⏹' : '▶';
+  const iconContent = isLoading
+    ? '<div class="spinner"></div>'
+    : isRecording ? '⏹' : '▶';
 
   let phaseText = '';
-  if (phase === 'playing-original') phaseText = 'Playing…';
+  if (phase === 'loading') phaseText = 'Loading…';
+  else if (phase === 'playing-original') phaseText = 'Playing…';
   else if (phase === 'beeping') phaseText = 'Ready…';
   else if (phase === 'recording') phaseText = 'Recording…';
   else if (phase === 'playing-user') phaseText = 'Your recording…';
 
   const player = els.inlinePlayer;
+  const iconClasses = 'play-icon' + (isRecording ? ' recording' : '') + (isLoading ? ' loading' : '');
   player.innerHTML = `
-    <span class="play-icon${isRecording ? ' recording' : ''}">${icon}</span>
+    <span class="${iconClasses}">${iconContent}</span>
     <span class="loop-counter">${loopCount}x</span>
     ${phaseText ? `<span class="phase-label">${phaseText}</span>` : ''}
   `;

@@ -276,6 +276,11 @@ main {
   flex-shrink: 0;
 }
 
+.inline-player .play-icon.loading {
+  border-color: var(--text-muted);
+  cursor: default;
+}
+
 .inline-player.recording .play-icon {
   border-color: #ff4444;
   animation: pulse 1s infinite;

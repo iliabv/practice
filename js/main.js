@@ -234,8 +234,8 @@ async function runLoop() {
   const cancelled = () => gen !== loopGeneration;
 
   try {
-    // 1. Play original
-    state.setPhase('playing-original');
+    // 1. Fetch TTS audio, then play original
+    state.setPhase('loading');
     updatePlayer();
     const audioBlob = await textToSpeech(sentenceText, apiKey, {
       previousText: sentences[index - 1],
@@ -245,6 +245,8 @@ async function runLoop() {
       languageCode: s.languageCode,
     });
     if (cancelled()) return;
+    state.setPhase('playing-original');
+    updatePlayer();
     await playBlob(audioBlob);
     if (cancelled()) return;
 
