@@ -1,10 +1,10 @@
 let mediaRecorder = null;
 let chunks = [];
 let resolveRecording = null;
-
 /**
- * Request microphone access and start recording.
- * Returns a Promise that resolves with the audio Blob when stopRecording() is called.
+ * Acquire the microphone and start recording immediately.
+ * Call this early (e.g. during the beep) so the mic is already "hot"
+ * by the time the user needs to speak.
  */
 export async function startRecording() {
   const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';

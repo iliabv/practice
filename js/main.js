@@ -126,19 +126,14 @@ async function runLoop() {
     await playBlob(audioBlob);
     if (cancelled()) return;
 
-    // 2. Start-recording beep
-    state.setPhase('beeping');
-    updatePlayer();
-    await playBeep();
-    if (cancelled()) return;
-    await sleep(300);
-    if (cancelled()) return;
-
-    // 3. Record
+    // 2. Start recording + beep simultaneously so mic is "hot" immediately
     state.setPhase('recording');
     updatePlayer();
-    const userBlob = await startRecording();
-    if (cancelled()) return;
+    const recordingPromise = startRecording();
+    await playBeep();
+    if (cancelled()) { stopRecording(); return; }
+    const userBlob = await recordingPromise;
+    if (cancelled()) { stopRecording(); return; }
 
     // 4. End-recording beep
     state.setUserRecording(userBlob);
