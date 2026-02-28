@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## General Rules For Code Changes
+1. Aim for simplicity, don't add unnecessary abstractions
+2. Abstractions that simplify the logic are OK
+3. Prefer linear flow
+4. Avoid unnecessary repetition
+5. Clean up unsused code
+6. ALWAYS update CLAUDE.md file if the new changes make parts of it outdated
+
 ## Project Overview
 
 A vanilla JavaScript web application for Dutch language pronunciation practice. Single-page app with no build system, bundler, or framework — pure HTML/CSS/ES6 modules that run directly in the browser.
@@ -40,10 +48,3 @@ Requires an ElevenLabs API key and microphone access for full functionality.
 - `.hidden` class for view toggling
 - kebab-case for DOM IDs and CSS classes, camelCase for JS
 - No external dependencies — browser APIs only (Web Audio, MediaRecorder, localStorage) plus ElevenLabs REST API
-
-## General programming practices
-1. Aim for simplicity, don't add unnecessary abstractions
-2. Abstractions that simplify the logic are OK
-3. Prefer linear flow
-4. Avoid unnecessary repetition
-5. Clean up unsused code
