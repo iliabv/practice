@@ -132,31 +132,32 @@ export function renderPlayer({ phase, loopCount, onPlay }) {
   const isRecording = phase === 'recording';
   const isIdle = phase === 'idle';
   const isLoading = phase === 'loading';
-  const disabled = !isIdle && !isRecording;
+  const isAwaitingRecord = phase === 'awaiting-record';
+  const interactive = isIdle || isRecording || isAwaitingRecord;
 
   const iconContent = isLoading
     ? '<div class="spinner"></div>'
-    : isRecording ? '⏹' : '▶';
+    : isRecording ? '⏹' : isAwaitingRecord ? '⏺' : '▶';
 
   let phaseText = '';
   if (phase === 'loading') phaseText = 'Loading…';
   else if (phase === 'playing-original') phaseText = 'Playing…';
-  else if (phase === 'beeping') phaseText = 'Ready…';
+  else if (phase === 'awaiting-record') phaseText = 'Press to record';
   else if (phase === 'recording') phaseText = 'Recording…';
   else if (phase === 'playing-user') phaseText = 'Your recording…';
 
   const player = els.inlinePlayer;
-  const iconClasses = 'play-icon' + (isRecording ? ' recording' : '') + (isLoading ? ' loading' : '');
+  const iconClasses = 'play-icon' + (isRecording ? ' recording' : '') + (isAwaitingRecord ? ' awaiting-record' : '') + (isLoading ? ' loading' : '');
   player.innerHTML = `
     <span class="${iconClasses}">${iconContent}</span>
     <span class="loop-counter">${loopCount}x</span>
     ${phaseText ? `<span class="phase-label">${phaseText}</span>` : ''}
   `;
-  player.classList.toggle('disabled', disabled);
+  player.classList.toggle('disabled', !interactive);
   player.classList.toggle('recording', isRecording);
   player.classList.remove('hidden');
 
-  player.onclick = disabled ? null : onPlay;
+  player.onclick = interactive ? onPlay : null;
   positionInlinePlayer();
 }
 

@@ -35,12 +35,12 @@ Requires an ElevenLabs API key and microphone access for full functionality.
 - **`ui.js`** — DOM manipulation, view switching (input ↔ practice), sentence rendering with color coding by loop count
 - **`elevenlabs.js`** — ElevenLabs TTS API v1 integration with Cache API (persistent across reloads); exports `VOICES`, `LANGUAGES`, `textToSpeech`; model `eleven_multilingual_v2`; voice, speed, and language are configurable; cache key includes all settings so no manual invalidation needed
 - **`recorder.js`** — Web Audio MediaRecorder wrapper, returns Promise resolving to audio Blob
-- **`audio-utils.js`** — Audio playback (`playBlob`, `playBeep`, `stopPlayback`) with settled-flag race condition prevention
+- **`audio-utils.js`** — Audio playback (`playBlob`, `stopPlayback`) with settled-flag race condition prevention
 - **`sentence-parser.js`** — Splits text on sentence boundaries using lookbehind regex
 
 ### Practice Loop Flow
 
-1. Play original sentence (TTS) → 2. Start beep → 3. Record user speech → 4. End beep → 5. Play recording back → 6. Play original again → 7. Increment loop count
+1. Play original sentence (TTS) → 2. Await user record press → 3. Record user speech → 4. Play recording back → 5. Play original again → 6. Increment loop count
 
 ### Conventions
 

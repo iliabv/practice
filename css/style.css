@@ -281,6 +281,10 @@ main {
   cursor: default;
 }
 
+.inline-player .play-icon.awaiting-record {
+  border-color: #ff4444;
+}
+
 .inline-player.recording .play-icon {
   border-color: #ff4444;
   animation: pulse 1s infinite;

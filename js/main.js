@@ -2,7 +2,7 @@ import { parseSentences } from './sentence-parser.js';
 import { createState } from './state.js';
 import { textToSpeech, VOICES, LANGUAGES } from './elevenlabs.js';
 import { startRecording, stopRecording } from './recorder.js';
-import { playBlob, playBeep, stopPlayback } from './audio-utils.js';
+import { playBlob, stopPlayback } from './audio-utils.js';
 import {
   els, showBanner, hideBanner,
   showInputView, showPracticeView,
@@ -160,6 +160,7 @@ function leavePracticeView() {
   clearFullPlayer();
   stopPlayback();
   stopRecording();
+  resolveRecordTrigger = null;
   loopGeneration++;
   state.clearActiveText();
   sentences = [];
@@ -198,6 +199,7 @@ function onSentenceClick(index) {
   }
 
   // Cancel any in-flight loop by bumping a generation counter
+  resolveRecordTrigger = null;
   loopGeneration++;
 
   state.setActiveSentence(index);
@@ -205,11 +207,42 @@ function onSentenceClick(index) {
   updatePlayer();
 }
 
+// --- Record trigger ---
+// When the loop is awaiting user action, resolving this starts the recording.
+let resolveRecordTrigger = null;
+
+/**
+ * Wait for the user to press record, record, then wait for them to stop.
+ * Returns the recorded audio Blob, or null if cancelled.
+ */
+function waitForRecording(gen) {
+  return new Promise((resolve) => {
+    const cancelled = () => gen !== loopGeneration;
+    resolveRecordTrigger = async () => {
+      resolveRecordTrigger = null;
+      if (cancelled()) { resolve(null); return; }
+      state.setPhase('recording');
+      updatePlayer();
+      try {
+        const blob = await startRecording();
+        resolve(cancelled() ? null : blob);
+      } catch (err) {
+        resolve(null);
+        throw err;
+      }
+    };
+  });
+}
+
 // --- Play/Stop button ---
 function onPlayStop() {
   const s = state.get();
   if (s.phase === 'recording') {
     stopRecording();
+    return;
+  }
+  if (s.phase === 'awaiting-record' && resolveRecordTrigger) {
+    resolveRecordTrigger();
     return;
   }
   if (s.phase === 'idle') {
@@ -250,29 +283,20 @@ async function runLoop() {
     await playBlob(audioBlob);
     if (cancelled()) return;
 
-    // 2 + 3. Start recording + beep simultaneously so mic is "hot" immediately
-    state.setPhase('recording');
+    // 2. Wait for user to press record
+    state.setPhase('awaiting-record');
     updatePlayer();
-    const recordingPromise = startRecording();
-    await playBeep();
-    if (cancelled()) { stopRecording(); return; }
-    const userBlob = await recordingPromise;
-    if (cancelled()) { stopRecording(); return; }
+    const userBlob = await waitForRecording(gen);
+    if (cancelled() || !userBlob) return;
 
-    // 4. End-recording beep
+    // 3. Play user's recording back
     state.setUserRecording(userBlob);
-    state.setPhase('beeping');
-    updatePlayer();
-    await playBeep(200, 660);
-    if (cancelled()) return;
-
-    // 5. Play user's recording back
     state.setPhase('playing-user');
     updatePlayer();
     await playBlob(userBlob);
     if (cancelled()) return;
 
-    // 6. Play original again
+    // 4. Play original again
     state.setPhase('playing-original');
     updatePlayer();
     await playBlob(audioBlob);
@@ -305,6 +329,7 @@ function onEscape() {
   if (playerOpen) {
     stopPlayback();
     if (s.phase === 'recording') stopRecording();
+    resolveRecordTrigger = null;
     loopGeneration++;
     state.setPhase('idle');
     clearPlayer();
