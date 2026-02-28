@@ -126,7 +126,7 @@ async function runLoop() {
     await playBlob(audioBlob);
     if (cancelled()) return;
 
-    // 2. Start recording + beep simultaneously so mic is "hot" immediately
+    // 2 + 3. Start recording + beep simultaneously so mic is "hot" immediately
     state.setPhase('recording');
     updatePlayer();
     const recordingPromise = startRecording();
@@ -184,10 +184,6 @@ function updatePlayer() {
     loopCount: progress?.loopCount || 0,
     onPlay: onPlayStop,
   });
-}
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // --- Keyboard shortcuts ---
