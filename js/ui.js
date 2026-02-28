@@ -25,6 +25,7 @@ export const els = {
   get inlinePlayer() { return $('#inline-player'); },
   get backBtn() { return $('#back-btn'); },
   get historyList() { return $('#history-list'); },
+  get toggleTextBtn() { return $('#toggle-text-btn'); },
 };
 
 /** Show an error banner. Click to dismiss. */
@@ -199,6 +200,13 @@ export function renderHistory(texts, { practiceHref, onDelete }) {
     item.appendChild(deleteBtn);
     container.appendChild(item);
   });
+}
+
+/** Apply text-hidden state to the sentences panel and button. */
+export function setTextHidden(hidden) {
+  els.sentencesPanel.classList.toggle('text-hidden', hidden);
+  els.toggleTextBtn.classList.toggle('active', hidden);
+  els.toggleTextBtn.textContent = hidden ? 'Show text' : 'Hide text';
 }
 
 window.addEventListener('resize', positionInlinePlayer);

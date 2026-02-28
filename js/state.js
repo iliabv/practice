@@ -50,6 +50,7 @@ export function createState() {
     voiceId: stored?.voiceId || 'EXAVITQu4vr4xnSDxMaL',
     speed: stored?.speed ?? 1.0,
     languageCode: stored?.languageCode || 'auto',
+    textHidden: stored?.textHidden ?? false,
     // Runtime-only (not persisted)
     activeSentenceIndex: -1,
     phase: 'idle',
@@ -85,6 +86,11 @@ export function createState() {
 
     setLanguageCode(code) {
       state.languageCode = code;
+      this.persist();
+    },
+
+    setTextHidden(hidden) {
+      state.textHidden = hidden;
       this.persist();
     },
 
@@ -166,6 +172,7 @@ export function createState() {
         voiceId: state.voiceId,
         speed: state.speed,
         languageCode: state.languageCode,
+        textHidden: state.textHidden,
       });
     },
 

@@ -150,6 +150,48 @@ main {
   border: 1px solid var(--border);
 }
 
+.practice-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#toggle-text-btn {
+  margin-top: 0.75rem;
+  padding: 0.6rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+#toggle-text-btn:hover {
+  opacity: 0.85;
+}
+
+#toggle-text-btn.active {
+  border-color: var(--border);
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Hidden text mode */
+.sentences-panel.text-hidden .sentence {
+  color: transparent;
+  outline-color: var(--border);
+}
+
+.sentences-panel.text-hidden .sentence:hover {
+  outline-color: var(--text-muted);
+}
+
+.sentences-panel.text-hidden .sentence::selection {
+  color: transparent;
+}
+
 /* Practice view */
 
 /* Sentences panel */

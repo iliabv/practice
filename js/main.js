@@ -7,7 +7,7 @@ import {
   els, showBanner, hideBanner,
   showInputView, showPracticeView,
   renderSentences, setActiveSentence, updateSentenceColor,
-  renderPlayer, clearPlayer, renderHistory,
+  renderPlayer, clearPlayer, renderHistory, setTextHidden,
 } from './ui.js';
 
 const state = createState();
@@ -142,6 +142,15 @@ els.backBtn.addEventListener('click', () => {
   setHash('#/');
 });
 
+// --- Toggle text visibility ---
+function toggleTextHidden() {
+  const hidden = !state.get().textHidden;
+  state.setTextHidden(hidden);
+  setTextHidden(hidden);
+}
+
+els.toggleTextBtn.addEventListener('click', toggleTextHidden);
+
 function leavePracticeView() {
   stopPlayback();
   stopRecording();
@@ -158,6 +167,7 @@ function enterPracticeView(text) {
   showPracticeView();
   const active = state.getActiveText();
   renderSentences(sentences, active.sentenceProgress, onSentenceClick);
+  setTextHidden(state.get().textHidden);
   clearPlayer();
 }
 
@@ -342,6 +352,12 @@ document.addEventListener('keydown', (e) => {
     const current = state.get().activeSentenceIndex;
     const next = current < 0 ? 0 : Math.min(current + 1, sentences.length - 1);
     if (next !== current) onSentenceClick(next);
+    return;
+  }
+
+  if (e.key === 't' || e.key === 'T' || e.key === 'h' || e.key === 'H') {
+    e.preventDefault();
+    toggleTextHidden();
     return;
   }
 
