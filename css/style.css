@@ -315,6 +315,27 @@ main {
   margin-top: 1rem;
 }
 
+/* Keyboard shortcuts help */
+.shortcuts-help {
+  margin-top: 2.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.shortcut kbd {
+  display: inline-block;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
 .hidden {
   display: none !important;
 }
