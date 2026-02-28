@@ -190,7 +190,10 @@ function onHistoryDelete(id) {
 function onSentenceClick(index) {
   const s = state.get();
   if (s.playingAll) pausePlayAll();
-  if (s.activeSentenceIndex === index) return;
+  if (s.activeSentenceIndex === index) {
+    updatePlayer();
+    return;
+  }
 
   // Stop any in-flight audio and recording
   stopPlayback();

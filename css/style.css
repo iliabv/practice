@@ -179,7 +179,6 @@ main {
 /* Hidden text mode */
 .sentences-panel.text-hidden .sentence {
   color: transparent;
-  outline-color: var(--border);
 }
 
 .sentences-panel.text-hidden .sentence:hover {
