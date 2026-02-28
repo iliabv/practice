@@ -19,6 +19,7 @@ let loopGeneration = 0;
 // Play-all state
 let playAllAudio = null;
 let playAllRafId = null;
+let playAllCharFractions = [];
 
 // --- Hash-based routing ---
 function setHash(hash) {
@@ -187,7 +188,7 @@ function onHistoryDelete(id) {
 // --- Sentence click ---
 function onSentenceClick(index) {
   const s = state.get();
-  if (s.playingAll) return;
+  if (s.playingAll) pausePlayAll();
   if (s.activeSentenceIndex === index) return;
 
   // Stop any in-flight audio and recording
@@ -361,11 +362,19 @@ async function playAll() {
     // Toggle pause/resume
     if (playAllAudio) {
       if (playAllAudio.paused) {
+        // Clear any active single-sentence state before resuming
+        stopPlayback();
+        if (state.get().phase === 'recording') stopRecording();
+        loopGeneration++;
+        state.setActiveSentence(-1);
+        setActiveSentence(-1);
+        clearPlayer();
+
         playAllAudio.play();
         updateFullPlayerButton(true);
+        startPlayAllTick();
       } else {
-        playAllAudio.pause();
-        updateFullPlayerButton(false);
+        pausePlayAll();
       }
     }
     return;
@@ -389,7 +398,7 @@ async function playAll() {
   state.setPlayingAll(true);
 
   const fullText = sentences.join(' ');
-  const charFractions = buildCharFractions();
+  playAllCharFractions = buildCharFractions();
 
   renderFullPlayerLoading();
 
@@ -428,24 +437,39 @@ async function playAll() {
 
     await audio.play();
 
-    // Animation loop for progress + sentence highlighting
-    const tick = () => {
-      if (!state.get().playingAll || !playAllAudio) return;
-      const ct = playAllAudio.currentTime;
-      const dur = playAllAudio.duration || 0;
-      updateFullPlayerProgress(ct, dur);
-      if (dur > 0) {
-        const idx = estimateSentenceIndex(ct / dur, charFractions);
-        setFullPlayingSentence(idx);
-      }
-      playAllRafId = requestAnimationFrame(tick);
-    };
-    playAllRafId = requestAnimationFrame(tick);
+    startPlayAllTick();
   } catch (err) {
     console.error(err);
     showBanner(err.message || 'An error occurred');
     stopPlayAll();
   }
+}
+
+function startPlayAllTick() {
+  if (playAllRafId) cancelAnimationFrame(playAllRafId);
+  const tick = () => {
+    if (!state.get().playingAll || !playAllAudio) return;
+    const ct = playAllAudio.currentTime;
+    const dur = playAllAudio.duration || 0;
+    updateFullPlayerProgress(ct, dur);
+    if (dur > 0) {
+      const idx = estimateSentenceIndex(ct / dur, playAllCharFractions);
+      setFullPlayingSentence(idx);
+    }
+    playAllRafId = requestAnimationFrame(tick);
+  };
+  playAllRafId = requestAnimationFrame(tick);
+}
+
+function pausePlayAll() {
+  if (!playAllAudio) return;
+  playAllAudio.pause();
+  if (playAllRafId) {
+    cancelAnimationFrame(playAllRafId);
+    playAllRafId = null;
+  }
+  setFullPlayingSentence(-1);
+  updateFullPlayerButton(false);
 }
 
 function stopPlayAll() {
@@ -491,9 +515,6 @@ document.addEventListener('keydown', (e) => {
     playAll();
     return;
   }
-
-  // Block sentence interactions while playing all
-  if (state.get().playingAll) return;
 
   if (e.code === 'Space') {
     if (state.get().activeSentenceIndex < 0) return;
