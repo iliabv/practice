@@ -1,6 +1,6 @@
 import { parseSentences } from './sentence-parser.js';
 import { createState } from './state.js';
-import { textToSpeech, clearTTSCache, VOICES, LANGUAGES } from './elevenlabs.js';
+import { textToSpeech, VOICES, LANGUAGES } from './elevenlabs.js';
 import { startRecording, stopRecording } from './recorder.js';
 import { playBlob, playBeep, stopPlayback } from './audio-utils.js';
 import {
@@ -8,11 +8,17 @@ import {
   showInputView, showPracticeView,
   renderSentences, setActiveSentence, updateSentenceColor,
   renderPlayer, clearPlayer, renderHistory, setTextHidden,
+  renderFullPlayerIdle, renderFullPlayerLoading, renderFullPlayer, updateFullPlayerProgress, updateFullPlayerButton,
+  clearFullPlayer, setFullPlayingSentence,
 } from './ui.js';
 
 const state = createState();
 let sentences = [];
 let loopGeneration = 0;
+
+// Play-all state
+let playAllAudio = null;
+let playAllRafId = null;
 
 // --- Hash-based routing ---
 function setHash(hash) {
@@ -100,13 +106,11 @@ els.apiKeyInput.addEventListener('input', () => {
 // --- Voice selector ---
 els.voiceSelect.addEventListener('change', () => {
   state.setVoiceId(els.voiceSelect.value);
-  clearTTSCache();
 });
 
 // --- Language selector ---
 els.languageSelect.addEventListener('change', () => {
   state.setLanguageCode(els.languageSelect.value);
-  clearTTSCache();
 });
 
 // --- Speed slider ---
@@ -114,7 +118,6 @@ els.speedRange.addEventListener('input', () => {
   const speed = parseFloat(els.speedRange.value);
   els.speedValue.textContent = speed.toFixed(1);
   state.setSpeed(speed);
-  clearTTSCache();
 });
 
 // --- Start button ---
@@ -152,6 +155,8 @@ function toggleTextHidden() {
 els.toggleTextBtn.addEventListener('click', toggleTextHidden);
 
 function leavePracticeView() {
+  stopPlayAll();
+  clearFullPlayer();
   stopPlayback();
   stopRecording();
   loopGeneration++;
@@ -169,6 +174,7 @@ function enterPracticeView(text) {
   renderSentences(sentences, active.sentenceProgress, onSentenceClick);
   setTextHidden(state.get().textHidden);
   clearPlayer();
+  renderFullPlayerIdle(playAll);
 }
 
 // --- History handlers ---
@@ -181,6 +187,7 @@ function onHistoryDelete(id) {
 // --- Sentence click ---
 function onSentenceClick(index) {
   const s = state.get();
+  if (s.playingAll) return;
   if (s.activeSentenceIndex === index) return;
 
   // Stop any in-flight audio and recording
@@ -326,6 +333,141 @@ function updatePlayer() {
   });
 }
 
+// --- Play all ---
+
+/** Build cumulative character-fraction array for sentence estimation. */
+function buildCharFractions() {
+  const totalChars = sentences.reduce((sum, s) => sum + s.length, 0);
+  if (totalChars === 0) return [];
+  const fractions = [];
+  let cumulative = 0;
+  for (const s of sentences) {
+    cumulative += s.length;
+    fractions.push(cumulative / totalChars);
+  }
+  return fractions;
+}
+
+/** Find which sentence index corresponds to a playback fraction (0–1). */
+function estimateSentenceIndex(fraction, charFractions) {
+  for (let i = 0; i < charFractions.length; i++) {
+    if (fraction < charFractions[i]) return i;
+  }
+  return charFractions.length - 1;
+}
+
+async function playAll() {
+  if (state.get().playingAll) {
+    // Toggle pause/resume
+    if (playAllAudio) {
+      if (playAllAudio.paused) {
+        playAllAudio.play();
+        updateFullPlayerButton(true);
+      } else {
+        playAllAudio.pause();
+        updateFullPlayerButton(false);
+      }
+    }
+    return;
+  }
+
+  const s = state.get();
+  const apiKey = s.apiKey;
+  if (!apiKey) {
+    showBanner('Please enter your ElevenLabs API key first.');
+    return;
+  }
+
+  // Deselect current sentence and clear inline player
+  stopPlayback();
+  if (s.phase === 'recording') stopRecording();
+  loopGeneration++;
+  state.setActiveSentence(-1);
+  setActiveSentence(-1);
+  clearPlayer();
+
+  state.setPlayingAll(true);
+
+  const fullText = sentences.join(' ');
+  const charFractions = buildCharFractions();
+
+  renderFullPlayerLoading();
+
+  try {
+    const blob = await textToSpeech(fullText, apiKey, {
+      voiceId: s.voiceId,
+      speed: s.speed,
+      languageCode: s.languageCode,
+    });
+
+    if (!state.get().playingAll) return; // stopped while fetching
+
+    renderFullPlayer({
+      playing: true,
+      onPlayPause: playAll,
+      onSeek: (fraction) => {
+        if (playAllAudio && playAllAudio.duration) {
+          playAllAudio.currentTime = fraction * playAllAudio.duration;
+        }
+      },
+    });
+
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    playAllAudio = audio;
+
+    audio.onended = () => {
+      URL.revokeObjectURL(url);
+      stopPlayAll();
+    };
+
+    audio.onerror = () => {
+      URL.revokeObjectURL(url);
+      stopPlayAll();
+    };
+
+    await audio.play();
+
+    // Animation loop for progress + sentence highlighting
+    const tick = () => {
+      if (!state.get().playingAll || !playAllAudio) return;
+      const ct = playAllAudio.currentTime;
+      const dur = playAllAudio.duration || 0;
+      updateFullPlayerProgress(ct, dur);
+      if (dur > 0) {
+        const idx = estimateSentenceIndex(ct / dur, charFractions);
+        setFullPlayingSentence(idx);
+      }
+      playAllRafId = requestAnimationFrame(tick);
+    };
+    playAllRafId = requestAnimationFrame(tick);
+  } catch (err) {
+    console.error(err);
+    showBanner(err.message || 'An error occurred');
+    stopPlayAll();
+  }
+}
+
+function stopPlayAll() {
+  if (playAllRafId) {
+    cancelAnimationFrame(playAllRafId);
+    playAllRafId = null;
+  }
+  if (playAllAudio) {
+    playAllAudio.pause();
+    playAllAudio.src = '';
+    playAllAudio = null;
+  }
+  state.setPlayingAll(false);
+  setFullPlayingSentence(-1);
+  // Return to idle player (visible but non-interactive scrubber)
+  if (sentences.length > 0) {
+    renderFullPlayerIdle(playAll);
+  } else {
+    clearFullPlayer();
+  }
+}
+
 // --- Keyboard shortcuts ---
 const NEXT_KEYS = new Set(['Enter', 'ArrowDown', 'ArrowRight']);
 const PREV_KEYS = new Set(['Backspace', 'Delete', 'ArrowUp', 'ArrowLeft']);
@@ -336,9 +478,22 @@ document.addEventListener('keydown', (e) => {
 
   if (e.key === 'Escape') {
     e.preventDefault();
+    if (state.get().playingAll) {
+      stopPlayAll();
+      return;
+    }
     onEscape();
     return;
   }
+
+  if (e.key === 'p' || e.key === 'P') {
+    e.preventDefault();
+    playAll();
+    return;
+  }
+
+  // Block sentence interactions while playing all
+  if (state.get().playingAll) return;
 
   if (e.code === 'Space') {
     if (state.get().activeSentenceIndex < 0) return;

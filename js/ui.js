@@ -26,6 +26,7 @@ export const els = {
   get backBtn() { return $('#back-btn'); },
   get historyList() { return $('#history-list'); },
   get toggleTextBtn() { return $('#toggle-text-btn'); },
+  get fullPlayer() { return $('#full-player'); },
 };
 
 /** Show an error banner. Click to dismiss. */
@@ -207,6 +208,108 @@ export function setTextHidden(hidden) {
   els.sentencesPanel.classList.toggle('text-hidden', hidden);
   els.toggleTextBtn.classList.toggle('active', hidden);
   els.toggleTextBtn.textContent = hidden ? 'Show text' : 'Hide text';
+}
+
+// --- Full-text player ---
+
+/** Show the full player bar in idle state (play button only, no seek). */
+export function renderFullPlayerIdle(onPlay) {
+  const player = els.fullPlayer;
+  player.innerHTML = `
+    <button class="full-player-btn">▶</button>
+    <div class="full-player-track disabled">
+      <div class="full-player-fill" style="width:0%"></div>
+    </div>
+  `;
+  player.classList.remove('hidden');
+  player.querySelector('.full-player-btn').onclick = onPlay;
+}
+
+/** Show the full player bar in loading state (spinner instead of play button). */
+export function renderFullPlayerLoading() {
+  const player = els.fullPlayer;
+  player.innerHTML = `
+    <div class="full-player-btn loading"><div class="spinner"></div></div>
+    <div class="full-player-track disabled">
+      <div class="full-player-fill" style="width:0%"></div>
+    </div>
+  `;
+  player.classList.remove('hidden');
+}
+
+/** Show the full player bar with play/pause button and seek track. */
+export function renderFullPlayer({ playing, onPlayPause, onSeek }) {
+  const player = els.fullPlayer;
+  player.innerHTML = `
+    <button class="full-player-btn">${playing ? '⏸' : '▶'}</button>
+    <div class="full-player-track">
+      <div class="full-player-fill" style="width:0%"></div>
+      <div class="full-player-caret" style="left:0%"></div>
+    </div>
+    <span class="full-player-time">0:00 / 0:00</span>
+  `;
+  player.classList.remove('hidden');
+
+  player.querySelector('.full-player-btn').onclick = onPlayPause;
+
+  // Seek interaction on the track
+  const track = player.querySelector('.full-player-track');
+  const seekTo = (e) => {
+    const rect = track.getBoundingClientRect();
+    const fraction = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    onSeek(fraction);
+  };
+
+  track.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    seekTo(e);
+    const onMove = (ev) => seekTo(ev);
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  });
+}
+
+/** Update the progress bar position and time label. */
+export function updateFullPlayerProgress(currentTime, duration) {
+  const player = els.fullPlayer;
+  if (player.classList.contains('hidden')) return;
+  const fraction = duration > 0 ? currentTime / duration : 0;
+  const pct = (fraction * 100).toFixed(2) + '%';
+  const fill = player.querySelector('.full-player-fill');
+  const caret = player.querySelector('.full-player-caret');
+  const time = player.querySelector('.full-player-time');
+  if (fill) fill.style.width = pct;
+  if (caret) caret.style.left = pct;
+  if (time) time.textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
+}
+
+function formatTime(secs) {
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+/** Update the play/pause icon on the full player. */
+export function updateFullPlayerButton(playing) {
+  const btn = els.fullPlayer.querySelector('.full-player-btn');
+  if (btn) btn.textContent = playing ? '⏸' : '▶';
+}
+
+/** Hide and clear the full player bar. */
+export function clearFullPlayer() {
+  els.fullPlayer.classList.add('hidden');
+  els.fullPlayer.innerHTML = '';
+}
+
+/** Highlight the sentence currently being spoken in play-all mode. */
+export function setFullPlayingSentence(index) {
+  els.sentencesPanel.querySelectorAll('.sentence').forEach((span) => {
+    span.classList.toggle('full-playing', Number(span.dataset.index) === index);
+  });
 }
 
 window.addEventListener('resize', positionInlinePlayer);

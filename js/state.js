@@ -55,6 +55,7 @@ export function createState() {
     activeSentenceIndex: -1,
     phase: 'idle',
     userRecording: null,
+    playingAll: false,
   };
 
   return {
@@ -158,6 +159,10 @@ export function createState() {
         active.sentenceProgress[index].loopCount++;
         this.persist();
       }
+    },
+
+    setPlayingAll(playing) {
+      state.playingAll = playing;
     },
 
     setUserRecording(blob) {

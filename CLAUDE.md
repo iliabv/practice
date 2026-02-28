@@ -33,7 +33,7 @@ Requires an ElevenLabs API key and microphone access for full functionality.
 - **`main.js`** — Orchestration, event listeners, practice loop lifecycle, keyboard shortcuts (Space/Arrow keys/Enter/Backspace)
 - **`state.js`** — Centralized state with getter/setter pattern; persistent fields auto-save to localStorage (key: `'dutch-practice'`)
 - **`ui.js`** — DOM manipulation, view switching (input ↔ practice), sentence rendering with color coding by loop count
-- **`elevenlabs.js`** — ElevenLabs TTS API v1 integration with in-memory cache; exports `VOICES`, `LANGUAGES`, `textToSpeech`, and `clearTTSCache`; model `eleven_multilingual_v2`; voice, speed, and language are configurable
+- **`elevenlabs.js`** — ElevenLabs TTS API v1 integration with Cache API (persistent across reloads); exports `VOICES`, `LANGUAGES`, `textToSpeech`; model `eleven_multilingual_v2`; voice, speed, and language are configurable; cache key includes all settings so no manual invalidation needed
 - **`recorder.js`** — Web Audio MediaRecorder wrapper, returns Promise resolving to audio Blob
 - **`audio-utils.js`** — Audio playback (`playBlob`, `playBeep`, `stopPlayback`) with settled-flag race condition prevention
 - **`sentence-parser.js`** — Splits text on sentence boundaries using lookbehind regex
@@ -47,4 +47,4 @@ Requires an ElevenLabs API key and microphone access for full functionality.
 - CSS variables for theming (`--bg`, `--surface`, `--text`, etc.)
 - `.hidden` class for view toggling
 - kebab-case for DOM IDs and CSS classes, camelCase for JS
-- No external dependencies — browser APIs only (Web Audio, MediaRecorder, localStorage) plus ElevenLabs REST API
+- No external dependencies — browser APIs only (Web Audio, MediaRecorder, localStorage, Cache API) plus ElevenLabs REST API
