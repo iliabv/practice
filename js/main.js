@@ -14,6 +14,24 @@ const state = createState();
 let sentences = [];
 let loopGeneration = 0;
 
+// --- Hash-based routing ---
+function setHash(hash) {
+  if (location.hash === hash) return;
+  location.hash = hash;
+}
+
+function getRouteFromHash() {
+  const hash = location.hash || '#/';
+  if (hash.startsWith('#/practice?text=')) {
+    return { view: 'practice', textId: decodeURIComponent(hash.slice('#/practice?text='.length)) };
+  }
+  return { view: 'input', textId: null };
+}
+
+function practiceHash(textId) {
+  return '#/practice?text=' + encodeURIComponent(textId);
+}
+
 // --- Populate voice selector ---
 function initVoiceSelect() {
   const select = els.voiceSelect;
@@ -47,21 +65,29 @@ function init() {
   els.speedRange.value = s.speed;
   els.speedValue.textContent = s.speed.toFixed(1);
 
+  // Try hash-driven resume, then fall back to state-driven resume
+  const route = getRouteFromHash();
+  if (route.view === 'practice' && route.textId) {
+    state.setActiveTextId(route.textId);
+  }
+
   const active = state.getActiveText();
   if (active) {
     sentences = parseSentences(active.text);
     if (sentences.length === active.sentenceProgress.length) {
+      setHash(practiceHash(state.get().activeTextId));
       enterPracticeView(active.text);
       return;
     }
   }
+  setHash('#/');
   showInputView('');
   refreshHistory();
 }
 
 function refreshHistory() {
   renderHistory(state.getTexts(), {
-    onClick: onHistoryClick,
+    practiceHref: practiceHash,
     onDelete: onHistoryDelete,
   });
 }
@@ -107,19 +133,25 @@ els.startBtn.addEventListener('click', () => {
   if (sentences.length === 0) return;
 
   state.setText(text, sentences.length);
+  setHash(practiceHash(state.get().activeTextId));
   enterPracticeView(text);
 });
 
 // --- Back button ---
 els.backBtn.addEventListener('click', () => {
+  setHash('#/');
+});
+
+function leavePracticeView() {
   stopPlayback();
   stopRecording();
   loopGeneration++;
   state.clearActiveText();
+  sentences = [];
   showInputView('');
   clearPlayer();
   refreshHistory();
-});
+}
 
 function enterPracticeView(text) {
   els.textInput.value = text;
@@ -130,12 +162,6 @@ function enterPracticeView(text) {
 }
 
 // --- History handlers ---
-function onHistoryClick(id) {
-  state.setActiveTextId(id);
-  const active = state.getActiveText();
-  sentences = parseSentences(active.text);
-  enterPracticeView(active.text);
-}
 
 function onHistoryDelete(id) {
   state.deleteText(id);
@@ -299,6 +325,25 @@ document.addEventListener('keydown', (e) => {
     if (current < 0) return;
     const prev = Math.max(current - 1, 0);
     if (prev !== current) onSentenceClick(prev);
+  }
+});
+
+// --- Hash-based navigation ---
+window.addEventListener('hashchange', () => {
+  const route = getRouteFromHash();
+  if (route.view === 'input') {
+    if (!state.getActiveText()) return; // already on input view
+    leavePracticeView();
+  } else if (route.view === 'practice' && route.textId) {
+    leavePracticeView();
+    state.setActiveTextId(route.textId);
+    const active = state.getActiveText();
+    if (active) {
+      sentences = parseSentences(active.text);
+      enterPracticeView(active.text);
+    } else {
+      setHash('#/');
+    }
   }
 });
 

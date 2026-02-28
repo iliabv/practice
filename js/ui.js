@@ -160,7 +160,7 @@ export function clearPlayer() {
 }
 
 /** Render history list below the textarea. */
-export function renderHistory(texts, { onClick, onDelete }) {
+export function renderHistory(texts, { practiceHref, onDelete }) {
   const container = els.historyList;
   container.innerHTML = '';
   if (texts.length === 0) return;
@@ -172,9 +172,9 @@ export function renderHistory(texts, { onClick, onDelete }) {
 
   // Show newest first
   [...texts].reverse().forEach((entry) => {
-    const item = document.createElement('div');
+    const item = document.createElement('a');
     item.className = 'history-item';
-    item.addEventListener('click', () => onClick(entry.id));
+    item.href = practiceHref(entry.id);
 
     const preview = document.createElement('span');
     preview.className = 'history-preview';
@@ -189,6 +189,7 @@ export function renderHistory(texts, { onClick, onDelete }) {
     deleteBtn.className = 'history-delete';
     deleteBtn.textContent = '×';
     deleteBtn.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
       onDelete(entry.id);
     });

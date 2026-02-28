@@ -274,6 +274,8 @@ main {
   cursor: pointer;
   margin-bottom: 0.5rem;
   transition: border-color 0.15s;
+  text-decoration: none;
+  color: inherit;
 }
 
 .history-item:hover {
