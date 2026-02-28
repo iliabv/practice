@@ -277,6 +277,26 @@ async function runLoop() {
   }
 }
 
+/** Escape handler: close player first, deselect sentence on second press. */
+function onEscape() {
+  const s = state.get();
+  const playerOpen = !els.inlinePlayer.classList.contains('hidden');
+
+  if (playerOpen) {
+    stopPlayback();
+    if (s.phase === 'recording') stopRecording();
+    loopGeneration++;
+    state.setPhase('idle');
+    clearPlayer();
+    return;
+  }
+
+  if (s.activeSentenceIndex >= 0) {
+    state.setActiveSentence(-1);
+    setActiveSentence(-1);
+  }
+}
+
 function updatePlayer() {
   const s = state.get();
   if (s.activeSentenceIndex < 0) {
@@ -303,6 +323,12 @@ const PREV_KEYS = new Set(['Backspace', 'Delete', 'ArrowUp', 'ArrowLeft']);
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   if (sentences.length === 0) return;
+
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    onEscape();
+    return;
+  }
 
   if (e.code === 'Space') {
     if (state.get().activeSentenceIndex < 0) return;

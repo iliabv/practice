@@ -1,6 +1,9 @@
+const MAX_RECORDING_MS = 30000;
+
 let mediaRecorder = null;
 let chunks = [];
 let resolveRecording = null;
+let recordingTimer = null;
 /**
  * Acquire the microphone and start recording immediately.
  * Call this early (e.g. during the beep) so the mic is already "hot"
@@ -29,6 +32,7 @@ export async function startRecording() {
     };
 
     mediaRecorder.start();
+    recordingTimer = setTimeout(() => stopRecording(), MAX_RECORDING_MS);
   });
 }
 
@@ -36,6 +40,10 @@ export async function startRecording() {
  * Stop the current recording. The Promise from startRecording() will resolve with the Blob.
  */
 export function stopRecording() {
+  if (recordingTimer) {
+    clearTimeout(recordingTimer);
+    recordingTimer = null;
+  }
   if (mediaRecorder && mediaRecorder.state === 'recording') {
     mediaRecorder.stop();
   }
