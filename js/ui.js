@@ -15,6 +15,7 @@ export const els = {
   get voiceSelect() { return $('#voice-select'); },
   get speedRange() { return $('#speed-range'); },
   get speedValue() { return $('#speed-value'); },
+  get languageSelect() { return $('#language-select'); },
   get banner() { return $('#banner'); },
   get inputView() { return $('#input-view'); },
   get textInput() { return $('#text-input'); },

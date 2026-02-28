@@ -1,6 +1,6 @@
 import { parseSentences } from './sentence-parser.js';
 import { createState } from './state.js';
-import { textToSpeech, clearTTSCache, VOICES } from './elevenlabs.js';
+import { textToSpeech, clearTTSCache, VOICES, LANGUAGES } from './elevenlabs.js';
 import { startRecording, stopRecording } from './recorder.js';
 import { playBlob, playBeep, stopPlayback } from './audio-utils.js';
 import {
@@ -26,11 +26,24 @@ function initVoiceSelect() {
   select.value = state.get().voiceId;
 }
 
+// --- Populate language selector ---
+function initLanguageSelect() {
+  const select = els.languageSelect;
+  LANGUAGES.forEach((l) => {
+    const opt = document.createElement('option');
+    opt.value = l.code;
+    opt.textContent = l.name;
+    select.appendChild(opt);
+  });
+  select.value = state.get().languageCode;
+}
+
 // --- Restore persisted state ---
 function init() {
   const s = state.get();
   els.apiKeyInput.value = s.apiKey;
   initVoiceSelect();
+  initLanguageSelect();
   els.speedRange.value = s.speed;
   els.speedValue.textContent = s.speed.toFixed(1);
 
@@ -61,6 +74,12 @@ els.apiKeyInput.addEventListener('input', () => {
 // --- Voice selector ---
 els.voiceSelect.addEventListener('change', () => {
   state.setVoiceId(els.voiceSelect.value);
+  clearTTSCache();
+});
+
+// --- Language selector ---
+els.languageSelect.addEventListener('change', () => {
+  state.setLanguageCode(els.languageSelect.value);
   clearTTSCache();
 });
 
@@ -179,6 +198,7 @@ async function runLoop() {
       nextText: sentences[index + 1],
       voiceId: s.voiceId,
       speed: s.speed,
+      languageCode: s.languageCode,
     });
     if (cancelled()) return;
     await playBlob(audioBlob);

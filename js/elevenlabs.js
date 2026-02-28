@@ -13,10 +13,11 @@ export function clearTTSCache() {
  * Fetch TTS audio for the given text. Returns an audio Blob.
  * Results are cached in memory — each unique (voice, speed, text) combo hits the API only once.
  */
-export async function textToSpeech(text, apiKey, { previousText, nextText, voiceId, speed } = {}) {
+export async function textToSpeech(text, apiKey, { previousText, nextText, voiceId, speed, languageCode } = {}) {
   const vid = voiceId || 'EXAVITQu4vr4xnSDxMaL';
   const spd = speed ?? 1.0;
-  const cacheKey = `${vid}:${spd}:${text}`;
+  const lang = languageCode || 'auto';
+  const cacheKey = `${vid}:${spd}:${lang}:${text}`;
 
   if (cache.has(cacheKey)) return cache.get(cacheKey);
 
@@ -30,7 +31,7 @@ export async function textToSpeech(text, apiKey, { previousText, nextText, voice
     body: JSON.stringify({
       text,
       model_id: MODEL_ID,
-      language_code: 'nl',
+      ...(lang !== 'auto' && { language_code: lang }),
       voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: spd },
       ...(previousText && { previous_text: previousText }),
       ...(nextText && { next_text: nextText }),
@@ -46,6 +47,43 @@ export async function textToSpeech(text, apiKey, { previousText, nextText, voice
   cache.set(cacheKey, blob);
   return blob;
 }
+
+/** Supported languages for the multilingual v2 model. */
+export const LANGUAGES = [
+  { code: 'auto', name: 'Guess' },
+  { code: 'ar', name: 'Arabic' },
+  { code: 'bg', name: 'Bulgarian' },
+  { code: 'zh', name: 'Chinese' },
+  { code: 'hr', name: 'Croatian' },
+  { code: 'cs', name: 'Czech' },
+  { code: 'da', name: 'Danish' },
+  { code: 'nl', name: 'Dutch' },
+  { code: 'en', name: 'English' },
+  { code: 'fi', name: 'Finnish' },
+  { code: 'fr', name: 'French' },
+  { code: 'de', name: 'German' },
+  { code: 'el', name: 'Greek' },
+  { code: 'hi', name: 'Hindi' },
+  { code: 'hu', name: 'Hungarian' },
+  { code: 'id', name: 'Indonesian' },
+  { code: 'it', name: 'Italian' },
+  { code: 'ja', name: 'Japanese' },
+  { code: 'ko', name: 'Korean' },
+  { code: 'ms', name: 'Malay' },
+  { code: 'no', name: 'Norwegian' },
+  { code: 'pl', name: 'Polish' },
+  { code: 'pt', name: 'Portuguese' },
+  { code: 'ro', name: 'Romanian' },
+  { code: 'ru', name: 'Russian' },
+  { code: 'sk', name: 'Slovak' },
+  { code: 'es', name: 'Spanish' },
+  { code: 'sv', name: 'Swedish' },
+  { code: 'ta', name: 'Tamil' },
+  { code: 'tl', name: 'Filipino' },
+  { code: 'tr', name: 'Turkish' },
+  { code: 'uk', name: 'Ukrainian' },
+  { code: 'vi', name: 'Vietnamese' },
+];
 
 /** Available voices for the UI. */
 export const VOICES = [

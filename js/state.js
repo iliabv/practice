@@ -49,6 +49,7 @@ export function createState() {
     texts: stored?.texts || [],
     voiceId: stored?.voiceId || 'EXAVITQu4vr4xnSDxMaL',
     speed: stored?.speed ?? 1.0,
+    languageCode: stored?.languageCode || 'auto',
     // Runtime-only (not persisted)
     activeSentenceIndex: -1,
     phase: 'idle',
@@ -79,6 +80,11 @@ export function createState() {
 
     setSpeed(speed) {
       state.speed = speed;
+      this.persist();
+    },
+
+    setLanguageCode(code) {
+      state.languageCode = code;
       this.persist();
     },
 
@@ -159,6 +165,7 @@ export function createState() {
         texts: state.texts,
         voiceId: state.voiceId,
         speed: state.speed,
+        languageCode: state.languageCode,
       });
     },
 

@@ -4,13 +4,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dutch Pronunciation Practice</title>
+  <title>Practice</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
   <header>
-    <h1>Dutch Pronunciation Practice</h1>
+    <h1>Practice</h1>
     <div class="header-controls">
       <div class="control-row">
         <label for="api-key-input">API Key</label>
@@ -24,6 +24,10 @@
         <label for="speed-range">Speed <span id="speed-value">1.0</span></label>
         <input type="range" id="speed-range" min="0.7" max="1.2" step="0.05" value="1.0">
       </div>
+      <div class="control-row">
+        <label for="language-select">Language</label>
+        <select id="language-select"></select>
+      </div>
     </div>
   </header>
 
@@ -32,7 +36,7 @@
   <main id="app">
     <!-- Input view -->
     <div id="input-view">
-      <textarea id="text-input" placeholder="Paste Dutch text here…" rows="10"></textarea>
+      <textarea id="text-input" placeholder="Paste text here…" rows="10"></textarea>
       <button id="start-btn">Start Practice</button>
       <div id="history-list"></div>
     </div>

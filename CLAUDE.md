@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A vanilla JavaScript web application for Dutch language pronunciation practice. Single-page app with no build system, bundler, or framework — pure HTML/CSS/ES6 modules that run directly in the browser.
+A vanilla JavaScript web application for language pronunciation practice. Supports any language available in ElevenLabs TTS (auto-detect by default). Single-page app with no build system, bundler, or framework — pure HTML/CSS/ES6 modules that run directly in the browser.
 
 ## Development
 
@@ -33,7 +33,7 @@ Requires an ElevenLabs API key and microphone access for full functionality.
 - **`main.js`** — Orchestration, event listeners, practice loop lifecycle, keyboard shortcuts (Space/Arrow keys/Enter/Backspace)
 - **`state.js`** — Centralized state with getter/setter pattern; persistent fields auto-save to localStorage (key: `'dutch-practice'`)
 - **`ui.js`** — DOM manipulation, view switching (input ↔ practice), sentence rendering with color coding by loop count
-- **`elevenlabs.js`** — ElevenLabs TTS API v1 integration with in-memory cache; exports `VOICES` list, `textToSpeech`, and `clearTTSCache`; model `eleven_multilingual_v2`; voice and speed are configurable
+- **`elevenlabs.js`** — ElevenLabs TTS API v1 integration with in-memory cache; exports `VOICES`, `LANGUAGES`, `textToSpeech`, and `clearTTSCache`; model `eleven_multilingual_v2`; voice, speed, and language are configurable
 - **`recorder.js`** — Web Audio MediaRecorder wrapper, returns Promise resolving to audio Blob
 - **`audio-utils.js`** — Audio playback (`playBlob`, `playBeep`, `stopPlayback`) with settled-flag race condition prevention
 - **`sentence-parser.js`** — Splits text on sentence boundaries using lookbehind regex
