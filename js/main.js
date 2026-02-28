@@ -145,7 +145,10 @@ async function runLoop() {
     // 1. Play original
     state.setPhase('playing-original');
     updatePlayer();
-    const audioBlob = await textToSpeech(sentenceText, apiKey);
+    const audioBlob = await textToSpeech(sentenceText, apiKey, {
+      previousText: sentences[index - 1],
+      nextText: sentences[index + 1],
+    });
     if (cancelled()) return;
     await playBlob(audioBlob);
     if (cancelled()) return;

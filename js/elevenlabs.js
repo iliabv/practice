@@ -9,7 +9,7 @@ const cache = new Map();
  * Fetch TTS audio for the given text. Returns an audio Blob.
  * Results are cached in memory — each unique text hits the API only once.
  */
-export async function textToSpeech(text, apiKey) {
+export async function textToSpeech(text, apiKey, { previousText, nextText } = {}) {
   if (cache.has(text)) return cache.get(text);
 
   const res = await fetch(`${API_BASE}/text-to-speech/${VOICE_ID}`, {
@@ -22,7 +22,10 @@ export async function textToSpeech(text, apiKey) {
     body: JSON.stringify({
       text,
       model_id: MODEL_ID,
+      language_code: 'nl',
       voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+      ...(previousText && { previous_text: previousText }),
+      ...(nextText && { next_text: nextText }),
     }),
   });
 
