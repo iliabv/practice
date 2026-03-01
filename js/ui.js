@@ -222,6 +222,12 @@ export function renderHistory(texts, { practiceHref, onDelete }) {
   });
 }
 
+/** Temporarily reveal/hide a sentence when text is hidden. */
+export function setSentenceRevealed(index, revealed) {
+  const span = els.sentencesPanel.querySelector(`.sentence[data-index="${index}"]`);
+  if (span) span.classList.toggle('revealed', revealed);
+}
+
 /** Apply text-hidden state to the sentences panel and button. */
 export function setTextHidden(hidden) {
   els.sentencesPanel.classList.toggle('text-hidden', hidden);

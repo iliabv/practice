@@ -193,6 +193,10 @@ main {
   color: transparent;
 }
 
+.sentences-panel.text-hidden .sentence.revealed {
+  color: var(--text);
+}
+
 #start-btn {
   margin-top: 0.75rem;
 }

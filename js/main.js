@@ -7,7 +7,7 @@ import {
   els, showBanner, hideBanner,
   showInputView, showPracticeView,
   renderSentences, setActiveSentence, updateSentenceColor,
-  renderPlayer, clearPlayer, renderHistory, setTextHidden,
+  renderPlayer, clearPlayer, renderHistory, setTextHidden, setSentenceRevealed,
   renderFullPlayerIdle, renderFullPlayerLoading, renderFullPlayer, updateFullPlayerProgress, updateFullPlayerButton,
   clearFullPlayer, setFullPlayingSentence,
 } from './ui.js';
@@ -169,7 +169,7 @@ function enterPracticeView(text) {
   setTextHidden(state.get().textHidden);
   clearPlayer();
   renderFullPlayerIdle(playAll);
-  ensurePipeline().catch(() => {}); // warm up mic in background
+  ensurePipeline().catch(() => { }); // warm up mic in background
 }
 
 // --- History handlers ---
@@ -177,6 +177,16 @@ function enterPracticeView(text) {
 function onHistoryDelete(id) {
   state.deleteText(id);
   refreshHistory();
+}
+
+/** Stop any in-flight loop: halt audio/recording, bump generation, un-reveal text. */
+function abortLoop() {
+  const prev = state.get().activeSentenceIndex;
+  stopPlayback();
+  if (state.get().phase === 'recording') stopRecording();
+  resolveRecordTrigger = null;
+  loopGeneration++;
+  if (prev >= 0) setSentenceRevealed(prev, false);
 }
 
 // --- Sentence click ---
@@ -188,12 +198,7 @@ function onSentenceClick(index) {
     return;
   }
 
-  // Cancel any in-flight loop before selecting new sentence
-  stopPlayback();
-  if (s.phase === 'recording') stopRecording();
-  resolveRecordTrigger = null;
-  loopGeneration++;
-
+  abortLoop();
   state.setActiveSentence(index);
   setActiveSentence(index);
   updatePlayer();
@@ -201,10 +206,7 @@ function onSentenceClick(index) {
 
 /** Cancel any in-flight loop, stop audio/recording, and clear inline player. */
 function cancelActiveLoop() {
-  stopPlayback();
-  if (state.get().phase === 'recording') stopRecording();
-  resolveRecordTrigger = null;
-  loopGeneration++;
+  abortLoop();
   state.setActiveSentence(-1);
   setActiveSentence(-1);
   clearPlayer();
@@ -296,6 +298,7 @@ async function runLoop() {
     state.setUserRecording(userBlob);
     state.setPhase('playing-user');
     updatePlayer();
+    if (state.get().textHidden) setSentenceRevealed(index, true);
     await new Promise(r => setTimeout(r, 500));
     if (cancelled()) return;
     await playBlob(userBlob);
@@ -308,6 +311,7 @@ async function runLoop() {
     if (cancelled()) return;
     await playBlob(audioBlob);
     if (cancelled()) return;
+    setSentenceRevealed(index, false);
 
     // Done
     state.incrementLoop(index);
@@ -333,10 +337,7 @@ function onEscape() {
   const playerOpen = !els.inlinePlayer.classList.contains('hidden');
 
   if (playerOpen) {
-    stopPlayback();
-    if (state.get().phase === 'recording') stopRecording();
-    resolveRecordTrigger = null;
-    loopGeneration++;
+    abortLoop();
     state.setPhase('idle');
     clearPlayer();
     return;
@@ -371,7 +372,6 @@ function updatePlayer() {
 
 /** Build sentence time ranges from alignment character data. */
 function buildSentenceTimes(alignment) {
-  const fullText = sentences.join(' ');
   const { characters, character_start_times_seconds, character_end_times_seconds } = alignment;
   const times = [];
   let charPos = 0; // position in fullText
