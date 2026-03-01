@@ -32,7 +32,7 @@ export async function playBlob(blob) {
   currentUrl = url;
 
   return new Promise((resolve) => {
-    audio.onended = () => {
+    const cleanup = () => {
       if (currentAudio === audio) {
         URL.revokeObjectURL(url);
         currentAudio = null;
@@ -40,14 +40,8 @@ export async function playBlob(blob) {
       }
       resolve();
     };
-    audio.onerror = () => {
-      if (currentAudio === audio) {
-        URL.revokeObjectURL(url);
-        currentAudio = null;
-        currentUrl = null;
-      }
-      resolve();
-    };
+    audio.onended = cleanup;
+    audio.onerror = cleanup;
     audio.preload = 'auto';
     if (audio.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
       audio.play();
