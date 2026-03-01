@@ -169,7 +169,6 @@ function enterPracticeView(text) {
   setTextHidden(state.get().textHidden);
   clearPlayer();
   renderFullPlayerIdle(playAll);
-  ensurePipeline().catch(() => { }); // warm up mic in background
 }
 
 // --- History handlers ---
@@ -193,6 +192,7 @@ function abortLoop() {
 function onSentenceClick(index) {
   const s = state.get();
   if (s.playingAll) pausePlayAll();
+  ensurePipeline().catch(() => { }); // warm up mic on user interaction (required on iOS)
   if (s.activeSentenceIndex === index) {
     updatePlayer();
     return;
