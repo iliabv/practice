@@ -13,7 +13,12 @@ let recordingTimer = null;
 export async function ensurePipeline() {
   if (!stream) {
     stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        sampleRate: 44100,
+      }
     });
   }
 }
@@ -33,7 +38,7 @@ export function releasePipeline() {
 export async function startRecording() {
   await ensurePipeline();
 
-  const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+  const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/mp4';
   chunks = [];
   mediaRecorder = new MediaRecorder(stream, { mimeType });
 
@@ -49,7 +54,7 @@ export async function startRecording() {
     }
   };
 
-  mediaRecorder.start();
+  mediaRecorder.start(1000);
   recordingTimer = setTimeout(() => stopRecording(), MAX_RECORDING_MS);
 
   return new Promise((resolve) => {
