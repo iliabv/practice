@@ -1,6 +1,6 @@
 import { parseSentences } from './sentence-parser.js';
 import { createState } from './state.js';
-import { textToSpeech, VOICES, LANGUAGES } from './elevenlabs.js';
+import { textToSpeech, textToSpeechWithTimestamps, VOICES, LANGUAGES } from './elevenlabs.js';
 import { startRecording, stopRecording } from './recorder.js';
 import { playBlob, stopPlayback, getAudioContext, getAudioContextSync } from './audio-utils.js';
 import {
@@ -23,7 +23,7 @@ const pa = {
   startTime: 0,       // ctx.currentTime when playback started
   offset: 0,          // offset into buffer (for pause/resume)
   rafId: null,
-  charFractions: [],
+  sentenceTimes: [],  // array of { start, end } from alignment data
 };
 
 // --- Hash-based routing ---
@@ -356,25 +356,41 @@ function updatePlayer() {
 
 // --- Play all ---
 
-/** Build cumulative character-fraction array for sentence estimation. */
-function buildCharFractions() {
-  const totalChars = sentences.reduce((sum, s) => sum + s.length, 0);
-  if (totalChars === 0) return [];
-  const fractions = [];
-  let cumulative = 0;
-  for (const s of sentences) {
-    cumulative += s.length;
-    fractions.push(cumulative / totalChars);
+/** Build sentence time ranges from alignment character data. */
+function buildSentenceTimes(alignment) {
+  const fullText = sentences.join(' ');
+  const { characters, character_start_times_seconds, character_end_times_seconds } = alignment;
+  const times = [];
+  let charPos = 0; // position in fullText
+
+  for (const sentence of sentences) {
+    const sentenceStart = charPos;
+    const sentenceEnd = charPos + sentence.length;
+    let start = Infinity;
+    let end = 0;
+
+    for (let i = 0; i < characters.length; i++) {
+      // Map alignment character index to position in fullText
+      // The alignment characters array corresponds to the full text
+      if (i >= sentenceStart && i < sentenceEnd) {
+        start = Math.min(start, character_start_times_seconds[i]);
+        end = Math.max(end, character_end_times_seconds[i]);
+      }
+    }
+
+    if (start === Infinity) start = end;
+    times.push({ start, end });
+    charPos = sentenceEnd + 1; // +1 for the joining space
   }
-  return fractions;
+  return times;
 }
 
-/** Find which sentence index corresponds to a playback fraction (0–1). */
-function estimateSentenceIndex(fraction, charFractions) {
-  for (let i = 0; i < charFractions.length; i++) {
-    if (fraction < charFractions[i]) return i;
+/** Find which sentence index corresponds to a playback time. */
+function findSentenceAtTime(currentTime, sentenceTimes) {
+  for (let i = 0; i < sentenceTimes.length; i++) {
+    if (currentTime < sentenceTimes[i].end) return i;
   }
-  return charFractions.length - 1;
+  return sentenceTimes.length - 1;
 }
 
 function playAllCurrentTime() {
@@ -429,16 +445,16 @@ async function playAll() {
   state.setPlayingAll(true);
 
   const fullText = sentences.join(' ');
-  pa.charFractions = buildCharFractions();
 
   renderFullPlayerLoading();
 
   try {
-    const blob = await textToSpeech(fullText, apiKey, {
+    const { blob, alignment } = await textToSpeechWithTimestamps(fullText, apiKey, {
       voiceId: s.voiceId,
       speed: s.speed,
       languageCode: s.languageCode,
     });
+    pa.sentenceTimes = buildSentenceTimes(alignment);
 
     if (!state.get().playingAll) return; // stopped while fetching
 
@@ -483,8 +499,8 @@ function startPlayAllTick() {
     const ct = playAllCurrentTime();
     const dur = pa.buffer ? pa.buffer.duration : 0;
     updateFullPlayerProgress(ct, dur);
-    if (dur > 0) {
-      const idx = estimateSentenceIndex(ct / dur, pa.charFractions);
+    if (dur > 0 && pa.sentenceTimes.length > 0) {
+      const idx = findSentenceAtTime(ct, pa.sentenceTimes);
       setFullPlayingSentence(idx);
     }
     pa.rafId = requestAnimationFrame(tick);

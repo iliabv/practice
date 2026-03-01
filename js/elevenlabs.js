@@ -4,46 +4,95 @@ const API_BASE = 'https://api.elevenlabs.io/v1';
 const CACHE_NAME = 'tts-cache';
 const OUTPUT_FORMAT = 'wav_24000';
 
+function normalizeOpts({ voiceId, speed, languageCode } = {}) {
+  return {
+    vid: voiceId || 'EXAVITQu4vr4xnSDxMaL',
+    spd: speed ?? 1.0,
+    lang: languageCode || 'auto',
+  };
+}
+
+function buildRequestBody(text, lang, spd, { previousText, nextText } = {}) {
+  return JSON.stringify({
+    text,
+    model_id: MODEL_ID,
+    ...(lang !== 'auto' && { language_code: lang }),
+    voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: spd },
+    ...(previousText && { previous_text: previousText }),
+    ...(nextText && { next_text: nextText }),
+  });
+}
+
+async function fetchTTS(url, apiKey, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
+    body,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`ElevenLabs API error ${res.status}: ${text}`);
+  }
+  return res;
+}
+
+function cacheUrl(prefix, vid, spd, lang, text) {
+  return `https://tts-cache/${encodeURIComponent(`${prefix}${OUTPUT_FORMAT}:${vid}:${spd}:${lang}:${text}`)}`;
+}
+
+function base64ToBlob(base64) {
+  const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+  return new Blob([bytes], { type: 'audio/wav' });
+}
+
 /**
  * Fetch TTS audio for the given text. Returns a WAV audio Blob.
  * Results are cached via the Cache API — persists across page reloads.
- * Each unique (voice, speed, language, text) combo hits the API only once.
  */
-export async function textToSpeech(text, apiKey, { previousText, nextText, voiceId, speed, languageCode } = {}) {
-  const vid = voiceId || 'EXAVITQu4vr4xnSDxMaL';
-  const spd = speed ?? 1.0;
-  const lang = languageCode || 'auto';
-  const cacheKey = `${OUTPUT_FORMAT}:${vid}:${spd}:${lang}:${text}`;
-  const cacheUrl = `https://tts-cache/${encodeURIComponent(cacheKey)}`;
+export async function textToSpeech(text, apiKey, opts = {}) {
+  const { vid, spd, lang } = normalizeOpts(opts);
+  const url = cacheUrl('', vid, spd, lang, text);
 
   const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(cacheUrl);
+  const cached = await cache.match(url);
   if (cached) return cached.blob();
 
-  const res = await fetch(`${API_BASE}/text-to-speech/${vid}?output_format=${OUTPUT_FORMAT}`, {
-    method: 'POST',
-    headers: {
-      'xi-api-key': apiKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      text,
-      model_id: MODEL_ID,
-      ...(lang !== 'auto' && { language_code: lang }),
-      voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: spd },
-      ...(previousText && { previous_text: previousText }),
-      ...(nextText && { next_text: nextText }),
-    }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`ElevenLabs API error ${res.status}: ${body}`);
-  }
+  const res = await fetchTTS(
+    `${API_BASE}/text-to-speech/${vid}?output_format=${OUTPUT_FORMAT}`,
+    apiKey, buildRequestBody(text, lang, spd, opts),
+  );
 
   const blob = await res.blob();
-  await cache.put(cacheUrl, new Response(blob));
+  await cache.put(url, new Response(blob));
   return blob;
+}
+
+/**
+ * Fetch TTS audio with character-level timing data. Returns { blob, alignment }.
+ * Uses a separate cache prefix so timestamps responses are cached independently.
+ */
+export async function textToSpeechWithTimestamps(text, apiKey, opts = {}) {
+  const { vid, spd, lang } = normalizeOpts(opts);
+  const url = cacheUrl('ts:', vid, spd, lang, text);
+
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(url);
+  if (cached) {
+    const data = await cached.json();
+    return { blob: base64ToBlob(data.audio_base64), alignment: data.alignment };
+  }
+
+  const res = await fetchTTS(
+    `${API_BASE}/text-to-speech/${vid}/with-timestamps?output_format=${OUTPUT_FORMAT}`,
+    apiKey, buildRequestBody(text, lang, spd, opts),
+  );
+
+  const data = await res.json();
+  await cache.put(url, new Response(JSON.stringify(data), {
+    headers: { 'Content-Type': 'application/json' },
+  }));
+
+  return { blob: base64ToBlob(data.audio_base64), alignment: data.alignment };
 }
 
 /** Supported languages for the multilingual v2 model. */
