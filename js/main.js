@@ -14,6 +14,7 @@ import {
 
 const state = createState();
 let sentences = [];
+let lineBreaks = new Map();
 let loopGeneration = 0;
 
 // Play-all state
@@ -72,7 +73,7 @@ function init() {
 
   const active = state.getActiveText();
   if (active) {
-    sentences = parseSentences(active.text);
+    ({ sentences, lineBreaks } = parseSentences(active.text));
     if (sentences.length === active.sentenceProgress.length) {
       setHash(practiceHash(state.get().activeTextId));
       enterPracticeView(active.text);
@@ -113,6 +114,11 @@ els.speedRange.addEventListener('input', () => {
   state.setSpeed(speed);
 });
 
+// --- Allow Enter in textarea (prevent global keydown handler interference) ---
+els.textInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') e.stopPropagation();
+});
+
 // --- Start button ---
 els.startBtn.addEventListener('click', () => {
   const text = els.textInput.value.trim();
@@ -125,7 +131,7 @@ els.startBtn.addEventListener('click', () => {
   }
 
   hideBanner();
-  sentences = parseSentences(text);
+  ({ sentences, lineBreaks } = parseSentences(text));
   if (sentences.length === 0) return;
 
   state.setText(text, sentences.length);
@@ -149,6 +155,7 @@ function leavePracticeView() {
   cancelActiveLoop();
   state.clearActiveText();
   sentences = [];
+  lineBreaks = new Map();
   showInputView('');
   refreshHistory();
 }
@@ -157,7 +164,7 @@ function enterPracticeView(text) {
   els.textInput.value = text;
   showPracticeView();
   const active = state.getActiveText();
-  renderSentences(sentences, active.sentenceProgress, onSentenceClick);
+  renderSentences(sentences, active.sentenceProgress, onSentenceClick, lineBreaks);
   setTextHidden(state.get().textHidden);
   clearPlayer();
   renderFullPlayerIdle(playAll);
@@ -607,7 +614,7 @@ window.addEventListener('hashchange', () => {
     state.setActiveTextId(route.textId);
     const active = state.getActiveText();
     if (active) {
-      sentences = parseSentences(active.text);
+      ({ sentences, lineBreaks } = parseSentences(active.text));
       enterPracticeView(active.text);
     } else {
       setHash('#/');

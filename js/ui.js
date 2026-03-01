@@ -61,8 +61,9 @@ export function showPracticeView() {
  * @param {string[]} sentences
  * @param {Array<{loopCount: number}>} progress
  * @param {function} onClick - called with sentence index
+ * @param {Map<number, number>} lineBreaks - maps sentence index → number of \n chars before it
  */
-export function renderSentences(sentences, progress, onClick) {
+export function renderSentences(sentences, progress, onClick, lineBreaks = new Map()) {
   // Detach inline player before clearing
   const player = els.inlinePlayer;
   if (player.parentNode === els.sentencesPanel) {
@@ -77,7 +78,16 @@ export function renderSentences(sentences, progress, onClick) {
     span.dataset.index = i;
     span.style.backgroundColor = loopColor(progress[i]?.loopCount || 0);
     span.addEventListener('click', () => onClick(i));
-    if (i > 0) els.sentencesPanel.appendChild(document.createTextNode(' '));
+    if (i > 0) {
+      const count = lineBreaks.get(i);
+      if (count > 0) {
+        for (let b = 0; b < count; b++) {
+          els.sentencesPanel.appendChild(document.createElement('br'));
+        }
+      } else {
+        els.sentencesPanel.appendChild(document.createTextNode(' '));
+      }
+    }
     els.sentencesPanel.appendChild(span);
   });
 
