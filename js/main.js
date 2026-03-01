@@ -2,7 +2,7 @@ import { parseSentences } from './sentence-parser.js';
 import { createState } from './state.js';
 import { textToSpeech, VOICES, LANGUAGES } from './elevenlabs.js';
 import { startRecording, stopRecording } from './recorder.js';
-import { playBlob, stopPlayback } from './audio-utils.js';
+import { playBlob, stopPlayback, getAudioContext, getAudioContextSync } from './audio-utils.js';
 import {
   els, showBanner, hideBanner,
   showInputView, showPracticeView,
@@ -17,7 +17,10 @@ let sentences = [];
 let loopGeneration = 0;
 
 // Play-all state
-let playAllAudio = null;
+let playAllSource = null;   // AudioBufferSourceNode
+let playAllBuffer = null;    // decoded AudioBuffer
+let playAllStartTime = 0;    // ctx.currentTime when playback started
+let playAllOffset = 0;       // offset into buffer (for pause/resume)
 let playAllRafId = null;
 let playAllCharFractions = [];
 
@@ -387,25 +390,49 @@ function estimateSentenceIndex(fraction, charFractions) {
   return charFractions.length - 1;
 }
 
+function playAllCurrentTime() {
+  if (!playAllSource) return playAllOffset;
+  const ctx = getAudioContextSync();
+  return playAllOffset + (ctx.currentTime - playAllStartTime);
+}
+
+function startPlayAllSource(offset) {
+  const ctx = getAudioContextSync();
+  const source = ctx.createBufferSource();
+  source.buffer = playAllBuffer;
+  source.connect(ctx.destination);
+  source.onended = () => {
+    if (playAllSource !== source) return;
+    // Only stop if we actually reached the end (not paused/seeked)
+    const elapsed = ctx.currentTime - playAllStartTime;
+    if (offset + elapsed >= playAllBuffer.duration - 0.05) {
+      stopPlayAll();
+    }
+  };
+  playAllSource = source;
+  playAllStartTime = ctx.currentTime;
+  playAllOffset = offset;
+  source.start(0, offset);
+}
+
 async function playAll() {
   if (state.get().playingAll) {
     // Toggle pause/resume
-    if (playAllAudio) {
-      if (playAllAudio.paused) {
-        // Clear any active single-sentence state before resuming
-        stopPlayback();
-        if (state.get().phase === 'recording') stopRecording();
-        loopGeneration++;
-        state.setActiveSentence(-1);
-        setActiveSentence(-1);
-        clearPlayer();
+    if (playAllSource) {
+      pausePlayAll();
+    } else if (playAllBuffer) {
+      // Resume from paused offset
+      stopPlayback();
+      if (state.get().phase === 'recording') stopRecording();
+      loopGeneration++;
+      state.setActiveSentence(-1);
+      setActiveSentence(-1);
+      clearPlayer();
 
-        playAllAudio.play();
-        updateFullPlayerButton(true);
-        startPlayAllTick();
-      } else {
-        pausePlayAll();
-      }
+      await getAudioContext();
+      startPlayAllSource(playAllOffset);
+      updateFullPlayerButton(true);
+      startPlayAllTick();
     }
     return;
   }
@@ -441,32 +468,32 @@ async function playAll() {
 
     if (!state.get().playingAll) return; // stopped while fetching
 
+    const ctx = await getAudioContext();
+    playAllBuffer = await ctx.decodeAudioData(await blob.arrayBuffer());
+
+    if (!state.get().playingAll) return;
+
     renderFullPlayer({
       playing: true,
       onPlayPause: playAll,
       onSeek: (fraction) => {
-        if (playAllAudio && playAllAudio.duration) {
-          playAllAudio.currentTime = fraction * playAllAudio.duration;
+        if (!playAllBuffer) return;
+        const wasPlaying = !!playAllSource;
+        if (playAllSource) {
+          playAllSource.onended = null;
+          playAllSource.stop();
+          playAllSource = null;
+        }
+        const newOffset = fraction * playAllBuffer.duration;
+        if (wasPlaying) {
+          startPlayAllSource(newOffset);
+        } else {
+          playAllOffset = newOffset;
         }
       },
     });
 
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    playAllAudio = audio;
-
-    audio.onended = () => {
-      URL.revokeObjectURL(url);
-      stopPlayAll();
-    };
-
-    audio.onerror = () => {
-      URL.revokeObjectURL(url);
-      stopPlayAll();
-    };
-
-    await audio.play();
-
+    startPlayAllSource(0);
     startPlayAllTick();
   } catch (err) {
     console.error(err);
@@ -478,9 +505,9 @@ async function playAll() {
 function startPlayAllTick() {
   if (playAllRafId) cancelAnimationFrame(playAllRafId);
   const tick = () => {
-    if (!state.get().playingAll || !playAllAudio) return;
-    const ct = playAllAudio.currentTime;
-    const dur = playAllAudio.duration || 0;
+    if (!state.get().playingAll || !playAllSource) return;
+    const ct = playAllCurrentTime();
+    const dur = playAllBuffer ? playAllBuffer.duration : 0;
     updateFullPlayerProgress(ct, dur);
     if (dur > 0) {
       const idx = estimateSentenceIndex(ct / dur, playAllCharFractions);
@@ -492,8 +519,12 @@ function startPlayAllTick() {
 }
 
 function pausePlayAll() {
-  if (!playAllAudio) return;
-  playAllAudio.pause();
+  if (!playAllSource) return;
+  // Capture current position before stopping
+  playAllOffset = playAllCurrentTime();
+  playAllSource.onended = null;
+  playAllSource.stop();
+  playAllSource = null;
   if (playAllRafId) {
     cancelAnimationFrame(playAllRafId);
     playAllRafId = null;
@@ -507,11 +538,13 @@ function stopPlayAll() {
     cancelAnimationFrame(playAllRafId);
     playAllRafId = null;
   }
-  if (playAllAudio) {
-    playAllAudio.pause();
-    playAllAudio.src = '';
-    playAllAudio = null;
+  if (playAllSource) {
+    playAllSource.onended = null;
+    playAllSource.stop();
+    playAllSource = null;
   }
+  playAllBuffer = null;
+  playAllOffset = 0;
   state.setPlayingAll(false);
   setFullPlayingSentence(-1);
   // Return to idle player (visible but non-interactive scrubber)

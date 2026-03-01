@@ -2,9 +2,10 @@ const MODEL_ID = 'eleven_multilingual_v2';
 const API_BASE = 'https://api.elevenlabs.io/v1';
 
 const CACHE_NAME = 'tts-cache';
+const OUTPUT_FORMAT = 'wav_24000';
 
 /**
- * Fetch TTS audio for the given text. Returns an audio Blob.
+ * Fetch TTS audio for the given text. Returns a WAV audio Blob.
  * Results are cached via the Cache API — persists across page reloads.
  * Each unique (voice, speed, language, text) combo hits the API only once.
  */
@@ -12,19 +13,18 @@ export async function textToSpeech(text, apiKey, { previousText, nextText, voice
   const vid = voiceId || 'EXAVITQu4vr4xnSDxMaL';
   const spd = speed ?? 1.0;
   const lang = languageCode || 'auto';
-  const cacheKey = `${vid}:${spd}:${lang}:${text}`;
+  const cacheKey = `${OUTPUT_FORMAT}:${vid}:${spd}:${lang}:${text}`;
   const cacheUrl = `https://tts-cache/${encodeURIComponent(cacheKey)}`;
 
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(cacheUrl);
   if (cached) return cached.blob();
 
-  const res = await fetch(`${API_BASE}/text-to-speech/${vid}`, {
+  const res = await fetch(`${API_BASE}/text-to-speech/${vid}?output_format=${OUTPUT_FORMAT}`, {
     method: 'POST',
     headers: {
       'xi-api-key': apiKey,
       'Content-Type': 'application/json',
-      'Accept': 'audio/mpeg',
     },
     body: JSON.stringify({
       text,

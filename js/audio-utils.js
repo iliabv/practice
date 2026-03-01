@@ -1,55 +1,61 @@
-let currentAudio = null;
+let audioCtx = null;
+let currentSource = null;
 
+/**
+ * Lazily create and return the shared AudioContext.
+ * Resumes automatically if suspended (e.g. before user gesture).
+ */
+export async function getAudioContext() {
+  if (!audioCtx) audioCtx = new AudioContext();
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+  return audioCtx;
+}
+
+/** Synchronous access to the AudioContext (caller handles resume). */
+export function getAudioContextSync() {
+  if (!audioCtx) audioCtx = new AudioContext();
+  return audioCtx;
+}
+
+/**
+ * Decode an audio Blob into an AudioBuffer using the Web Audio API.
+ * This pre-decodes the entire clip into PCM, eliminating streaming glitches.
+ */
+async function decodeBlob(blob) {
+  const ctx = await getAudioContext();
+  const arrayBuffer = await blob.arrayBuffer();
+  return ctx.decodeAudioData(arrayBuffer);
+}
 
 /**
  * Play an audio Blob. Returns a Promise that resolves when playback ends.
+ * Uses Web Audio API (AudioBufferSourceNode) for glitch-free playback.
  */
-export function playBlob(blob) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    currentAudio = audio;
-    let settled = false;
+export async function playBlob(blob) {
+  const ctx = await getAudioContext();
 
-    const done = () => {
-      if (settled) return;
-      settled = true;
-      if (currentAudio === audio) currentAudio = null;
-      URL.revokeObjectURL(url);
+  const buffer = await decodeBlob(blob);
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(ctx.destination);
+  currentSource = source;
+
+  return new Promise((resolve) => {
+    source.onended = () => {
+      if (currentSource === source) currentSource = null;
       resolve();
     };
-
-    const fail = (e) => {
-      if (settled) return;
-      settled = true;
-      if (currentAudio === audio) currentAudio = null;
-      URL.revokeObjectURL(url);
-      reject(e);
-    };
-
-    audio.onended = done;
-    // Fallback: some browsers fire 'pause' instead of 'ended' for blob URLs
-    audio.onpause = () => {
-      if (audio.currentTime > 0 && audio.duration > 0
-          && audio.currentTime >= audio.duration - 0.05) {
-        done();
-      }
-    };
-    audio.onerror = fail;
-    audio.play().catch(fail);
+    source.start();
   });
 }
 
 /**
  * Stop any currently playing audio.
- * The Promise from playBlob will hang (never resolve),
- * but that's fine — the caller uses a generation counter to abandon it.
+ * The Promise from playBlob will resolve via onended.
  */
 export function stopPlayback() {
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio.src = '';
-    currentAudio = null;
+  if (currentSource) {
+    currentSource.stop();
+    currentSource = null;
   }
-
 }
