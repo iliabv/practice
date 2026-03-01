@@ -14,7 +14,7 @@ export async function ensurePipeline() {
   if (!stream) {
     stream = await navigator.mediaDevices.getUserMedia({
       audio: {
-        noiseSuppression: true,
+        noiseSuppression: false,
         echoCancellation: false,
         autoGainControl: false,
         sampleRate: 44100,
