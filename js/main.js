@@ -17,12 +17,14 @@ let sentences = [];
 let loopGeneration = 0;
 
 // Play-all state
-let playAllSource = null;   // AudioBufferSourceNode
-let playAllBuffer = null;    // decoded AudioBuffer
-let playAllStartTime = 0;    // ctx.currentTime when playback started
-let playAllOffset = 0;       // offset into buffer (for pause/resume)
-let playAllRafId = null;
-let playAllCharFractions = [];
+const pa = {
+  source: null,       // AudioBufferSourceNode
+  buffer: null,       // decoded AudioBuffer
+  startTime: 0,       // ctx.currentTime when playback started
+  offset: 0,          // offset into buffer (for pause/resume)
+  rafId: null,
+  charFractions: [],
+};
 
 // --- Hash-based routing ---
 function setHash(hash) {
@@ -42,36 +44,23 @@ function practiceHash(textId) {
   return '#/practice?text=' + encodeURIComponent(textId);
 }
 
-// --- Populate voice selector ---
-function initVoiceSelect() {
-  const select = els.voiceSelect;
-  VOICES.forEach((v) => {
+/** Populate a <select> element with options from a { value, label } array. */
+function populateSelect(selectEl, items, selectedValue) {
+  for (const { value, label } of items) {
     const opt = document.createElement('option');
-    opt.value = v.id;
-    opt.textContent = v.name;
-    select.appendChild(opt);
-  });
-  select.value = state.get().voiceId;
-}
-
-// --- Populate language selector ---
-function initLanguageSelect() {
-  const select = els.languageSelect;
-  LANGUAGES.forEach((l) => {
-    const opt = document.createElement('option');
-    opt.value = l.code;
-    opt.textContent = l.name;
-    select.appendChild(opt);
-  });
-  select.value = state.get().languageCode;
+    opt.value = value;
+    opt.textContent = label;
+    selectEl.appendChild(opt);
+  }
+  selectEl.value = selectedValue;
 }
 
 // --- Restore persisted state ---
 function init() {
   const s = state.get();
   els.apiKeyInput.value = s.apiKey;
-  initVoiceSelect();
-  initLanguageSelect();
+  populateSelect(els.voiceSelect, VOICES.map(v => ({ value: v.id, label: v.name })), s.voiceId);
+  populateSelect(els.languageSelect, LANGUAGES.map(l => ({ value: l.code, label: l.name })), s.languageCode);
   els.speedRange.value = s.speed;
   els.speedValue.textContent = s.speed.toFixed(1);
 
@@ -144,10 +133,6 @@ els.startBtn.addEventListener('click', () => {
   enterPracticeView(text);
 });
 
-// --- Back button ---
-els.backBtn.addEventListener('click', () => {
-  setHash('#/');
-});
 
 // --- Toggle text visibility ---
 function toggleTextHidden() {
@@ -161,14 +146,10 @@ els.toggleTextBtn.addEventListener('click', toggleTextHidden);
 function leavePracticeView() {
   stopPlayAll();
   clearFullPlayer();
-  stopPlayback();
-  stopRecording();
-  resolveRecordTrigger = null;
-  loopGeneration++;
+  cancelActiveLoop();
   state.clearActiveText();
   sentences = [];
   showInputView('');
-  clearPlayer();
   refreshHistory();
 }
 
@@ -198,19 +179,26 @@ function onSentenceClick(index) {
     return;
   }
 
-  // Stop any in-flight audio and recording
+  // Cancel any in-flight loop before selecting new sentence
   stopPlayback();
-  if (s.phase === 'recording') {
-    stopRecording();
-  }
-
-  // Cancel any in-flight loop by bumping a generation counter
+  if (s.phase === 'recording') stopRecording();
   resolveRecordTrigger = null;
   loopGeneration++;
 
   state.setActiveSentence(index);
   setActiveSentence(index);
   updatePlayer();
+}
+
+/** Cancel any in-flight loop, stop audio/recording, and clear inline player. */
+function cancelActiveLoop() {
+  stopPlayback();
+  if (state.get().phase === 'recording') stopRecording();
+  resolveRecordTrigger = null;
+  loopGeneration++;
+  state.setActiveSentence(-1);
+  setActiveSentence(-1);
+  clearPlayer();
 }
 
 // --- Record trigger ---
@@ -329,12 +317,11 @@ async function runLoop() {
 
 /** Escape handler: close player first, deselect sentence on second press. */
 function onEscape() {
-  const s = state.get();
   const playerOpen = !els.inlinePlayer.classList.contains('hidden');
 
   if (playerOpen) {
     stopPlayback();
-    if (s.phase === 'recording') stopRecording();
+    if (state.get().phase === 'recording') stopRecording();
     resolveRecordTrigger = null;
     loopGeneration++;
     state.setPhase('idle');
@@ -342,7 +329,7 @@ function onEscape() {
     return;
   }
 
-  if (s.activeSentenceIndex >= 0) {
+  if (state.get().activeSentenceIndex >= 0) {
     state.setActiveSentence(-1);
     setActiveSentence(-1);
   }
@@ -391,46 +378,40 @@ function estimateSentenceIndex(fraction, charFractions) {
 }
 
 function playAllCurrentTime() {
-  if (!playAllSource) return playAllOffset;
+  if (!pa.source) return pa.offset;
   const ctx = getAudioContextSync();
-  return playAllOffset + (ctx.currentTime - playAllStartTime);
+  return pa.offset + (ctx.currentTime - pa.startTime);
 }
 
 function startPlayAllSource(offset) {
   const ctx = getAudioContextSync();
   const source = ctx.createBufferSource();
-  source.buffer = playAllBuffer;
+  source.buffer = pa.buffer;
   source.connect(ctx.destination);
   source.onended = () => {
-    if (playAllSource !== source) return;
+    if (pa.source !== source) return;
     // Only stop if we actually reached the end (not paused/seeked)
-    const elapsed = ctx.currentTime - playAllStartTime;
-    if (offset + elapsed >= playAllBuffer.duration - 0.05) {
+    const elapsed = ctx.currentTime - pa.startTime;
+    if (offset + elapsed >= pa.buffer.duration - 0.05) {
       stopPlayAll();
     }
   };
-  playAllSource = source;
-  playAllStartTime = ctx.currentTime;
-  playAllOffset = offset;
+  pa.source = source;
+  pa.startTime = ctx.currentTime;
+  pa.offset = offset;
   source.start(0, offset);
 }
 
 async function playAll() {
   if (state.get().playingAll) {
     // Toggle pause/resume
-    if (playAllSource) {
+    if (pa.source) {
       pausePlayAll();
-    } else if (playAllBuffer) {
+    } else if (pa.buffer) {
       // Resume from paused offset
-      stopPlayback();
-      if (state.get().phase === 'recording') stopRecording();
-      loopGeneration++;
-      state.setActiveSentence(-1);
-      setActiveSentence(-1);
-      clearPlayer();
-
+      cancelActiveLoop();
       await getAudioContext();
-      startPlayAllSource(playAllOffset);
+      startPlayAllSource(pa.offset);
       updateFullPlayerButton(true);
       startPlayAllTick();
     }
@@ -444,18 +425,11 @@ async function playAll() {
     return;
   }
 
-  // Deselect current sentence and clear inline player
-  stopPlayback();
-  if (s.phase === 'recording') stopRecording();
-  loopGeneration++;
-  state.setActiveSentence(-1);
-  setActiveSentence(-1);
-  clearPlayer();
-
+  cancelActiveLoop();
   state.setPlayingAll(true);
 
   const fullText = sentences.join(' ');
-  playAllCharFractions = buildCharFractions();
+  pa.charFractions = buildCharFractions();
 
   renderFullPlayerLoading();
 
@@ -469,7 +443,7 @@ async function playAll() {
     if (!state.get().playingAll) return; // stopped while fetching
 
     const ctx = await getAudioContext();
-    playAllBuffer = await ctx.decodeAudioData(await blob.arrayBuffer());
+    pa.buffer = await ctx.decodeAudioData(await blob.arrayBuffer());
 
     if (!state.get().playingAll) return;
 
@@ -477,18 +451,18 @@ async function playAll() {
       playing: true,
       onPlayPause: playAll,
       onSeek: (fraction) => {
-        if (!playAllBuffer) return;
-        const wasPlaying = !!playAllSource;
-        if (playAllSource) {
-          playAllSource.onended = null;
-          playAllSource.stop();
-          playAllSource = null;
+        if (!pa.buffer) return;
+        const wasPlaying = !!pa.source;
+        if (pa.source) {
+          pa.source.onended = null;
+          pa.source.stop();
+          pa.source = null;
         }
-        const newOffset = fraction * playAllBuffer.duration;
+        const newOffset = fraction * pa.buffer.duration;
         if (wasPlaying) {
           startPlayAllSource(newOffset);
         } else {
-          playAllOffset = newOffset;
+          pa.offset = newOffset;
         }
       },
     });
@@ -503,48 +477,48 @@ async function playAll() {
 }
 
 function startPlayAllTick() {
-  if (playAllRafId) cancelAnimationFrame(playAllRafId);
+  if (pa.rafId) cancelAnimationFrame(pa.rafId);
   const tick = () => {
-    if (!state.get().playingAll || !playAllSource) return;
+    if (!state.get().playingAll || !pa.source) return;
     const ct = playAllCurrentTime();
-    const dur = playAllBuffer ? playAllBuffer.duration : 0;
+    const dur = pa.buffer ? pa.buffer.duration : 0;
     updateFullPlayerProgress(ct, dur);
     if (dur > 0) {
-      const idx = estimateSentenceIndex(ct / dur, playAllCharFractions);
+      const idx = estimateSentenceIndex(ct / dur, pa.charFractions);
       setFullPlayingSentence(idx);
     }
-    playAllRafId = requestAnimationFrame(tick);
+    pa.rafId = requestAnimationFrame(tick);
   };
-  playAllRafId = requestAnimationFrame(tick);
+  pa.rafId = requestAnimationFrame(tick);
 }
 
 function pausePlayAll() {
-  if (!playAllSource) return;
+  if (!pa.source) return;
   // Capture current position before stopping
-  playAllOffset = playAllCurrentTime();
-  playAllSource.onended = null;
-  playAllSource.stop();
-  playAllSource = null;
-  if (playAllRafId) {
-    cancelAnimationFrame(playAllRafId);
-    playAllRafId = null;
+  pa.offset = playAllCurrentTime();
+  pa.source.onended = null;
+  pa.source.stop();
+  pa.source = null;
+  if (pa.rafId) {
+    cancelAnimationFrame(pa.rafId);
+    pa.rafId = null;
   }
   setFullPlayingSentence(-1);
   updateFullPlayerButton(false);
 }
 
 function stopPlayAll() {
-  if (playAllRafId) {
-    cancelAnimationFrame(playAllRafId);
-    playAllRafId = null;
+  if (pa.rafId) {
+    cancelAnimationFrame(pa.rafId);
+    pa.rafId = null;
   }
-  if (playAllSource) {
-    playAllSource.onended = null;
-    playAllSource.stop();
-    playAllSource = null;
+  if (pa.source) {
+    pa.source.onended = null;
+    pa.source.stop();
+    pa.source = null;
   }
-  playAllBuffer = null;
-  playAllOffset = 0;
+  pa.buffer = null;
+  pa.offset = 0;
   state.setPlayingAll(false);
   setFullPlayingSentence(-1);
   // Return to idle player (visible but non-interactive scrubber)
@@ -586,26 +560,19 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
-  if (NEXT_KEYS.has(e.key)) {
+  const dir = NEXT_KEYS.has(e.key) ? 1 : PREV_KEYS.has(e.key) ? -1 : 0;
+  if (dir) {
     e.preventDefault();
     const current = state.get().activeSentenceIndex;
-    const next = current < 0 ? 0 : Math.min(current + 1, sentences.length - 1);
-    if (next !== current) onSentenceClick(next);
+    if (dir === -1 && current < 0) return;
+    const target = current < 0 ? 0 : Math.max(0, Math.min(current + dir, sentences.length - 1));
+    if (target !== current) onSentenceClick(target);
     return;
   }
 
   if (e.key === 't' || e.key === 'T' || e.key === 'h' || e.key === 'H') {
     e.preventDefault();
     toggleTextHidden();
-    return;
-  }
-
-  if (PREV_KEYS.has(e.key)) {
-    e.preventDefault();
-    const current = state.get().activeSentenceIndex;
-    if (current < 0) return;
-    const prev = Math.max(current - 1, 0);
-    if (prev !== current) onSentenceClick(prev);
   }
 });
 

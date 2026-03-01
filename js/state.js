@@ -58,6 +58,12 @@ export function createState() {
     playingAll: false,
   };
 
+  function resetRuntime() {
+    state.activeSentenceIndex = -1;
+    state.phase = 'idle';
+    state.userRecording = null;
+  }
+
   return {
     get: () => state,
 
@@ -113,25 +119,19 @@ export function createState() {
         state.texts.push(entry);
       }
       state.activeTextId = entry.id;
-      state.activeSentenceIndex = -1;
-      state.phase = 'idle';
-      state.userRecording = null;
+      resetRuntime();
       this.persist();
     },
 
     setActiveTextId(id) {
       state.activeTextId = id;
-      state.activeSentenceIndex = -1;
-      state.phase = 'idle';
-      state.userRecording = null;
+      resetRuntime();
       this.persist();
     },
 
     clearActiveText() {
       state.activeTextId = null;
-      state.activeSentenceIndex = -1;
-      state.phase = 'idle';
-      state.userRecording = null;
+      resetRuntime();
       this.persist();
     },
 
@@ -144,9 +144,8 @@ export function createState() {
     },
 
     setActiveSentence(index) {
+      resetRuntime();
       state.activeSentenceIndex = index;
-      state.phase = 'idle';
-      state.userRecording = null;
     },
 
     setPhase(phase) {

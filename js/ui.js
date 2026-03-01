@@ -14,22 +14,22 @@ function loopColor(loopCount) {
 }
 
 export const els = {
-  get apiKeyInput() { return $('#api-key-input'); },
-  get voiceSelect() { return $('#voice-select'); },
-  get speedRange() { return $('#speed-range'); },
-  get speedValue() { return $('#speed-value'); },
-  get languageSelect() { return $('#language-select'); },
-  get banner() { return $('#banner'); },
-  get inputView() { return $('#input-view'); },
-  get textInput() { return $('#text-input'); },
-  get startBtn() { return $('#start-btn'); },
-  get practiceView() { return $('#practice-view'); },
-  get sentencesPanel() { return $('#sentences-panel'); },
-  get inlinePlayer() { return $('#inline-player'); },
-  get backBtn() { return $('#back-btn'); },
-  get historyList() { return $('#history-list'); },
-  get toggleTextBtn() { return $('#toggle-text-btn'); },
-  get fullPlayer() { return $('#full-player'); },
+  apiKeyInput: $('#api-key-input'),
+  voiceSelect: $('#voice-select'),
+  speedRange: $('#speed-range'),
+  speedValue: $('#speed-value'),
+  languageSelect: $('#language-select'),
+  banner: $('#banner'),
+  inputView: $('#input-view'),
+  textInput: $('#text-input'),
+  startBtn: $('#start-btn'),
+  practiceView: $('#practice-view'),
+  sentencesPanel: $('#sentences-panel'),
+  inlinePlayer: $('#inline-player'),
+  backBtn: $('#back-btn'),
+  historyList: $('#history-list'),
+  toggleTextBtn: $('#toggle-text-btn'),
+  fullPlayer: $('#full-player'),
 };
 
 /** Show an error banner. Click to dismiss. */
