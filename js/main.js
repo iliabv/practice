@@ -1,7 +1,7 @@
 import { parseSentences } from './sentence-parser.js';
 import { createState } from './state.js';
 import { textToSpeech, textToSpeechWithTimestamps, VOICES, LANGUAGES } from './elevenlabs.js';
-import { startRecording, stopRecording } from './recorder.js';
+import { startRecording, stopRecording, ensurePipeline, releasePipeline } from './recorder.js';
 import { playBlob, stopPlayback, getAudioContext, getAudioContextSync } from './audio-utils.js';
 import {
   els, showBanner, hideBanner,
@@ -153,6 +153,7 @@ function leavePracticeView() {
   stopPlayAll();
   clearFullPlayer();
   cancelActiveLoop();
+  releasePipeline();
   state.clearActiveText();
   sentences = [];
   lineBreaks = new Map();
@@ -168,6 +169,7 @@ function enterPracticeView(text) {
   setTextHidden(state.get().textHidden);
   clearPlayer();
   renderFullPlayerIdle(playAll);
+  ensurePipeline().catch(() => {}); // warm up mic in background
 }
 
 // --- History handlers ---
