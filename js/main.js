@@ -283,16 +283,20 @@ async function runLoop() {
     const userBlob = await waitForRecording(gen);
     if (cancelled() || !userBlob) return;
 
-    // 3. Play user's recording back
+    // 3. Play user's recording back (delay lets Bluetooth switch from HFP to A2DP)
     state.setUserRecording(userBlob);
     state.setPhase('playing-user');
     updatePlayer();
+    await new Promise(r => setTimeout(r, 500));
+    if (cancelled()) return;
     await playBlob(userBlob);
     if (cancelled()) return;
 
     // 4. Play original again
     state.setPhase('playing-original');
     updatePlayer();
+    await new Promise(r => setTimeout(r, 500));
+    if (cancelled()) return;
     await playBlob(audioBlob);
     if (cancelled()) return;
 

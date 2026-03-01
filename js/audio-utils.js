@@ -1,5 +1,6 @@
 let audioCtx = null;
-let currentSource = null;
+let currentAudio = null;
+let currentUrl = null;
 
 /**
  * Lazily create and return the shared AudioContext.
@@ -18,34 +19,41 @@ export function getAudioContextSync() {
 }
 
 /**
- * Decode an audio Blob into an AudioBuffer using the Web Audio API.
- * This pre-decodes the entire clip into PCM, eliminating streaming glitches.
- */
-async function decodeBlob(blob) {
-  const ctx = await getAudioContext();
-  const arrayBuffer = await blob.arrayBuffer();
-  return ctx.decodeAudioData(arrayBuffer);
-}
-
-/**
  * Play an audio Blob. Returns a Promise that resolves when playback ends.
- * Uses Web Audio API (AudioBufferSourceNode) for glitch-free playback.
+ * Uses HTMLAudioElement with blob URL for reliable cross-platform playback
+ * (AudioContext.decodeAudioData fails on iOS with MediaRecorder's audio/mp4).
  */
 export async function playBlob(blob) {
-  const ctx = await getAudioContext();
+  stopPlayback();
 
-  const buffer = await decodeBlob(blob);
-  const source = ctx.createBufferSource();
-  source.buffer = buffer;
-  source.connect(ctx.destination);
-  currentSource = source;
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  currentAudio = audio;
+  currentUrl = url;
 
   return new Promise((resolve) => {
-    source.onended = () => {
-      if (currentSource === source) currentSource = null;
+    audio.onended = () => {
+      if (currentAudio === audio) {
+        URL.revokeObjectURL(url);
+        currentAudio = null;
+        currentUrl = null;
+      }
       resolve();
     };
-    source.start();
+    audio.onerror = () => {
+      if (currentAudio === audio) {
+        URL.revokeObjectURL(url);
+        currentAudio = null;
+        currentUrl = null;
+      }
+      resolve();
+    };
+    audio.preload = 'auto';
+    if (audio.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+      audio.play();
+    } else {
+      audio.oncanplaythrough = () => audio.play();
+    }
   });
 }
 
@@ -54,8 +62,12 @@ export async function playBlob(blob) {
  * The Promise from playBlob will resolve via onended.
  */
 export function stopPlayback() {
-  if (currentSource) {
-    currentSource.stop();
-    currentSource = null;
+  if (currentAudio) {
+    currentAudio.oncanplaythrough = null;
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    URL.revokeObjectURL(currentUrl);
+    currentAudio = null;
+    currentUrl = null;
   }
 }

@@ -11,7 +11,9 @@ let recordingTimer = null;
  */
 export async function startRecording() {
   const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+  });
 
   return new Promise((resolve) => {
     resolveRecording = resolve;
