@@ -434,6 +434,15 @@ main {
   cursor: pointer;
 }
 
+.full-player-track::before {
+  content: '';
+  position: absolute;
+  top: -14px;
+  bottom: -14px;
+  left: 0;
+  right: 0;
+}
+
 .full-player-fill {
   position: absolute;
   left: 0;
