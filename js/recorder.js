@@ -11,13 +11,7 @@ let recordingTimer = null;
  */
 export async function ensurePipeline() {
   if (!stream) {
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        noiseSuppression: false,
-        echoCancellation: false,
-        autoGainControl: true,
-      }
-    });
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   }
 }
 
