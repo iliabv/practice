@@ -29,6 +29,7 @@ export const els = {
   backBtn: $('#back-btn'),
   historyList: $('#history-list'),
   toggleTextBtn: $('#toggle-text-btn'),
+  holdMicBtn: $('#hold-mic-btn'),
   fullPlayer: $('#full-player'),
 };
 
@@ -146,9 +147,10 @@ export function renderPlayer({ phase, loopCount, onPlay }) {
   const isIdle = phase === 'idle';
   const isLoading = phase === 'loading';
   const isAwaitingRecord = phase === 'awaiting-record';
+  const isPreparing = phase === 'preparing';
   const interactive = isIdle || isRecording || isAwaitingRecord;
 
-  const iconContent = isLoading
+  const iconContent = (isLoading || isPreparing)
     ? '<div class="spinner"></div>'
     : isRecording ? '⏹' : isAwaitingRecord ? '⏺' : '▶';
 
@@ -156,11 +158,12 @@ export function renderPlayer({ phase, loopCount, onPlay }) {
   if (phase === 'loading') phaseText = 'Loading…';
   else if (phase === 'playing-original') phaseText = 'Playing…';
   else if (phase === 'awaiting-record') phaseText = 'Press to record';
+  else if (phase === 'preparing') phaseText = 'Preparing…';
   else if (phase === 'recording') phaseText = 'Recording…';
   else if (phase === 'playing-user') phaseText = 'Your recording…';
 
   const player = els.inlinePlayer;
-  const iconClasses = 'play-icon' + (isRecording ? ' recording' : '') + (isAwaitingRecord ? ' awaiting-record' : '') + (isLoading ? ' loading' : '');
+  const iconClasses = 'play-icon' + (isRecording ? ' recording' : '') + (isAwaitingRecord ? ' awaiting-record' : '') + ((isLoading || isPreparing) ? ' loading' : '');
   player.innerHTML = `
     <span class="${iconClasses}">${iconContent}</span>
     <span class="loop-counter">${loopCount}x</span>
@@ -233,6 +236,11 @@ export function setTextHidden(hidden) {
   els.sentencesPanel.classList.toggle('text-hidden', hidden);
   els.toggleTextBtn.classList.toggle('active', hidden);
   els.toggleTextBtn.textContent = hidden ? 'Show text' : 'Hide text';
+}
+
+/** Apply hold-mic state to the button. */
+export function setHoldMic(active) {
+  els.holdMicBtn.classList.toggle('active', active);
 }
 
 // --- Full-text player ---

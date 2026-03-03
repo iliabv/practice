@@ -51,6 +51,7 @@ export function createState() {
     speed: stored?.speed ?? 1.0,
     languageCode: stored?.languageCode || 'auto',
     textHidden: stored?.textHidden ?? false,
+    holdMic: stored?.holdMic ?? false,
     // Runtime-only (not persisted)
     activeSentenceIndex: -1,
     phase: 'idle',
@@ -98,6 +99,11 @@ export function createState() {
 
     setTextHidden(hidden) {
       state.textHidden = hidden;
+      this.persist();
+    },
+
+    setHoldMic(hold) {
+      state.holdMic = hold;
       this.persist();
     },
 
@@ -177,6 +183,7 @@ export function createState() {
         speed: state.speed,
         languageCode: state.languageCode,
         textHidden: state.textHidden,
+        holdMic: state.holdMic,
       });
     },
 

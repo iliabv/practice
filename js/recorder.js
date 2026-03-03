@@ -1,6 +1,9 @@
 const MAX_RECORDING_MS = 30000;
+const MIC_GAIN = 5.0;
 
-let stream = null;
+let stream = null;       // raw mic stream
+let boostedStream = null; // gain-boosted stream for recording
+let gainCtx = null;       // AudioContext for the gain pipeline
 let mediaRecorder = null;
 let chunks = [];
 let resolveRecording = null;
@@ -8,7 +11,7 @@ let recordingTimer = null;
 
 /**
  * Acquire the microphone once and keep it hot.
- * Call early (e.g. on entering practice view) so recordings start instantly.
+ * Routes through a GainNode to boost recording volume.
  */
 export async function ensurePipeline() {
   if (!stream) {
@@ -16,10 +19,16 @@ export async function ensurePipeline() {
       audio: {
         noiseSuppression: false,
         echoCancellation: false,
-        autoGainControl: false,
-        sampleRate: 44100,
+        autoGainControl: true,
       }
     });
+    gainCtx = new AudioContext();
+    const source = gainCtx.createMediaStreamSource(stream);
+    const gain = gainCtx.createGain();
+    gain.gain.value = MIC_GAIN;
+    const dest = gainCtx.createMediaStreamDestination();
+    source.connect(gain).connect(dest);
+    boostedStream = dest.stream;
   }
 }
 
@@ -28,19 +37,26 @@ export function releasePipeline() {
   if (stream) {
     stream.getTracks().forEach(t => t.stop());
     stream = null;
+    boostedStream = null;
+  }
+  if (gainCtx) {
+    gainCtx.close();
+    gainCtx = null;
   }
 }
 
 /**
  * Start recording from the already-hot mic stream.
  * Returns a Promise that resolves with the audio Blob when stopped.
+ * @param {object} [opts]
+ * @param {function} [opts.onReady] - called after mic is warm and recording has started
  */
-export async function startRecording() {
+export async function startRecording({ onReady } = {}) {
   await ensurePipeline();
 
-  const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/mp4';
+  const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
   chunks = [];
-  mediaRecorder = new MediaRecorder(stream, { mimeType });
+  mediaRecorder = new MediaRecorder(boostedStream, { mimeType });
 
   mediaRecorder.ondataavailable = (e) => {
     if (e.data.size > 0) chunks.push(e.data);
@@ -55,6 +71,7 @@ export async function startRecording() {
   };
 
   mediaRecorder.start(1000);
+  onReady?.();
   recordingTimer = setTimeout(() => stopRecording(), MAX_RECORDING_MS);
 
   return new Promise((resolve) => {

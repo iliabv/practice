@@ -7,7 +7,7 @@ import {
   els, showBanner, hideBanner,
   showInputView, showPracticeView,
   renderSentences, setActiveSentence, updateSentenceColor,
-  renderPlayer, clearPlayer, renderHistory, setTextHidden, setSentenceRevealed,
+  renderPlayer, clearPlayer, renderHistory, setTextHidden, setHoldMic, setSentenceRevealed,
   renderFullPlayerIdle, renderFullPlayerLoading, renderFullPlayer, updateFullPlayerProgress, updateFullPlayerButton,
   clearFullPlayer, setFullPlayingSentence,
 } from './ui.js';
@@ -149,6 +149,20 @@ function toggleTextHidden() {
 
 els.toggleTextBtn.addEventListener('click', toggleTextHidden);
 
+// --- Toggle hold mic ---
+function toggleHoldMic() {
+  const hold = !state.get().holdMic;
+  state.setHoldMic(hold);
+  setHoldMic(hold);
+  if (hold) {
+    ensurePipeline().catch(() => { });
+  } else {
+    releasePipeline();
+  }
+}
+
+els.holdMicBtn.addEventListener('click', toggleHoldMic);
+
 function leavePracticeView() {
   stopPlayAll();
   clearFullPlayer();
@@ -167,6 +181,7 @@ function enterPracticeView(text) {
   const active = state.getActiveText();
   renderSentences(sentences, active.sentenceProgress, onSentenceClick, lineBreaks);
   setTextHidden(state.get().textHidden);
+  setHoldMic(state.get().holdMic);
   clearPlayer();
   renderFullPlayerIdle(playAll);
 }
@@ -182,7 +197,7 @@ function onHistoryDelete(id) {
 function abortLoop() {
   const prev = state.get().activeSentenceIndex;
   stopPlayback();
-  if (state.get().phase === 'recording') stopRecording();
+  if (state.get().phase === 'recording' || state.get().phase === 'preparing') stopRecording();
   resolveRecordTrigger = null;
   loopGeneration++;
   if (prev >= 0) setSentenceRevealed(prev, false);
@@ -192,7 +207,7 @@ function abortLoop() {
 function onSentenceClick(index) {
   const s = state.get();
   if (s.playingAll) pausePlayAll();
-  ensurePipeline().catch(() => { }); // warm up mic on user interaction (required on iOS)
+  if (s.holdMic) ensurePipeline().catch(() => { });
   if (s.activeSentenceIndex === index) {
     updatePlayer();
     return;
@@ -226,10 +241,16 @@ function waitForRecording(gen) {
     resolveRecordTrigger = async () => {
       resolveRecordTrigger = null;
       if (cancelled()) { resolve(null); return; }
-      state.setPhase('recording');
+      state.setPhase('preparing');
       updatePlayer();
       try {
-        const blob = await startRecording();
+        const blob = await startRecording({
+          onReady() {
+            if (cancelled()) return;
+            state.setPhase('recording');
+            updatePlayer();
+          }
+        });
         resolve(cancelled() ? null : blob);
       } catch (err) {
         resolve(null);
@@ -242,7 +263,7 @@ function waitForRecording(gen) {
 // --- Play/Stop button ---
 function onPlayStop() {
   const s = state.get();
-  if (s.phase === 'recording') {
+  if (s.phase === 'recording' || s.phase === 'preparing') {
     stopRecording();
     return;
   }
@@ -293,6 +314,9 @@ async function runLoop() {
     updatePlayer();
     const userBlob = await waitForRecording(gen);
     if (cancelled() || !userBlob) return;
+
+    // Release mic if not holding
+    if (!state.get().holdMic) releasePipeline();
 
     // 3. Play user's recording back (delay lets Bluetooth switch from HFP to A2DP)
     state.setUserRecording(userBlob);
@@ -602,6 +626,12 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 't' || e.key === 'T' || e.key === 'h' || e.key === 'H') {
     e.preventDefault();
     toggleTextHidden();
+    return;
+  }
+
+  if (e.key === 'm' || e.key === 'M') {
+    e.preventDefault();
+    toggleHoldMic();
   }
 });
 
