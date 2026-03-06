@@ -1,6 +1,6 @@
 import { parseSentences } from './sentence-parser.js';
 import { createState } from './state.js';
-import { textToSpeech, textToSpeechWithTimestamps, VOICES, LANGUAGES } from './elevenlabs.js';
+import { textToSpeech, textToSpeechWithTimestamps, fetchVoices, LANGUAGES } from './tts.js';
 import { startRecording, stopRecording, ensurePipeline, releasePipeline } from './recorder.js';
 import { playBlob, stopPlayback, getAudioContext, getAudioContextSync } from './audio-utils.js';
 import {
@@ -47,23 +47,45 @@ function practiceHash(textId) {
 
 /** Populate a <select> element with options from a { value, label } array. */
 function populateSelect(selectEl, items, selectedValue) {
+  selectEl.innerHTML = '';
   for (const { value, label } of items) {
     const opt = document.createElement('option');
     opt.value = value;
     opt.textContent = label;
     selectEl.appendChild(opt);
   }
-  selectEl.value = selectedValue;
+  if (selectedValue && items.some(i => i.value === selectedValue)) {
+    selectEl.value = selectedValue;
+  }
+}
+
+/** Fetch voices for the current language and populate the voice dropdown. */
+async function refreshVoices() {
+  const s = state.get();
+  if (!s.apiKey) return;
+  try {
+    const voices = await fetchVoices(s.apiKey, s.languageCode);
+    const items = voices.map(v => ({ value: v.name, label: v.label }));
+    populateSelect(els.voiceSelect, items, s.voiceName);
+    // Auto-select first voice if current selection is empty or not in list
+    if (!s.voiceName || !voices.some(v => v.name === s.voiceName)) {
+      const first = voices[0]?.name || '';
+      state.setVoiceName(first);
+      els.voiceSelect.value = first;
+    }
+  } catch (err) {
+    console.error('Failed to fetch voices:', err);
+  }
 }
 
 // --- Restore persisted state ---
 function init() {
   const s = state.get();
   els.apiKeyInput.value = s.apiKey;
-  populateSelect(els.voiceSelect, VOICES.map(v => ({ value: v.id, label: v.name })), s.voiceId);
   populateSelect(els.languageSelect, LANGUAGES.map(l => ({ value: l.code, label: l.name })), s.languageCode);
   els.speedRange.value = s.speed;
   els.speedValue.textContent = s.speed.toFixed(1);
+  refreshVoices();
 
   // Try hash-driven resume, then fall back to state-driven resume
   const route = getRouteFromHash();
@@ -93,18 +115,22 @@ function refreshHistory() {
 }
 
 // --- API key ---
+let apiKeyTimer;
 els.apiKeyInput.addEventListener('input', () => {
   state.setApiKey(els.apiKeyInput.value.trim());
+  clearTimeout(apiKeyTimer);
+  apiKeyTimer = setTimeout(refreshVoices, 500);
 });
 
 // --- Voice selector ---
 els.voiceSelect.addEventListener('change', () => {
-  state.setVoiceId(els.voiceSelect.value);
+  state.setVoiceName(els.voiceSelect.value);
 });
 
 // --- Language selector ---
 els.languageSelect.addEventListener('change', () => {
   state.setLanguageCode(els.languageSelect.value);
+  refreshVoices();
 });
 
 // --- Speed slider ---
@@ -126,7 +152,7 @@ els.startBtn.addEventListener('click', () => {
 
   const apiKey = state.get().apiKey;
   if (!apiKey) {
-    showBanner('Please enter your ElevenLabs API key first.');
+    showBanner('Please enter your Google Cloud API key first.');
     return;
   }
 
@@ -285,7 +311,7 @@ async function runLoop() {
   const gen = loopGeneration;
 
   if (!apiKey) {
-    showBanner('Please enter your ElevenLabs API key first.');
+    showBanner('Please enter your Google Cloud API key first.');
     return;
   }
 
@@ -297,9 +323,7 @@ async function runLoop() {
     state.setPhase('loading');
     updatePlayer();
     const audioBlob = await textToSpeech(sentenceText, apiKey, {
-      previousText: sentences[index - 1],
-      nextText: sentences[index + 1],
-      voiceId: s.voiceId,
+      voiceName: s.voiceName,
       speed: s.speed,
       languageCode: s.languageCode,
     });
@@ -394,30 +418,29 @@ function updatePlayer() {
 
 // --- Play all ---
 
-/** Build sentence time ranges from alignment character data. */
-function buildSentenceTimes(alignment) {
-  const { characters, character_start_times_seconds, character_end_times_seconds } = alignment;
-  const times = [];
-  let charPos = 0; // position in fullText
-
-  for (const sentence of sentences) {
-    const sentenceStart = charPos;
-    const sentenceEnd = charPos + sentence.length;
-    let start = Infinity;
-    let end = 0;
-
-    for (let i = 0; i < characters.length; i++) {
-      // Map alignment character index to position in fullText
-      // The alignment characters array corresponds to the full text
-      if (i >= sentenceStart && i < sentenceEnd) {
-        start = Math.min(start, character_start_times_seconds[i]);
-        end = Math.max(end, character_end_times_seconds[i]);
-      }
+/** Build sentence time ranges from Google TTS timepoints. */
+function buildSentenceTimes(timepoints, sentenceList, duration) {
+  // If we have valid timepoints, use them
+  if (timepoints && timepoints.length > 0) {
+    const times = [];
+    for (let i = 0; i < sentenceList.length; i++) {
+      const tp = timepoints.find(t => t.markName === `s${i}`);
+      const nextTp = timepoints.find(t => t.markName === `s${i + 1}`);
+      const start = tp ? parseFloat(tp.timeSeconds) : 0;
+      const end = nextTp ? parseFloat(nextTp.timeSeconds) : duration;
+      times.push({ start, end });
     }
+    return times;
+  }
 
-    if (start === Infinity) start = end;
-    times.push({ start, end });
-    charPos = sentenceEnd + 1; // +1 for the joining space
+  // Fallback: distribute proportionally by character count
+  const totalChars = sentenceList.reduce((sum, s) => sum + s.length, 0);
+  const times = [];
+  let offset = 0;
+  for (const s of sentenceList) {
+    const len = (s.length / totalChars) * duration;
+    times.push({ start: offset, end: offset + len });
+    offset += len;
   }
   return times;
 }
@@ -474,29 +497,27 @@ async function playAll() {
   const s = state.get();
   const apiKey = s.apiKey;
   if (!apiKey) {
-    showBanner('Please enter your ElevenLabs API key first.');
+    showBanner('Please enter your Google Cloud API key first.');
     return;
   }
 
   cancelActiveLoop();
   state.setPlayingAll(true);
 
-  const fullText = sentences.join(' ');
-
   renderFullPlayerLoading();
 
   try {
-    const { blob, alignment } = await textToSpeechWithTimestamps(fullText, apiKey, {
-      voiceId: s.voiceId,
+    const { blob, timepoints } = await textToSpeechWithTimestamps(sentences, apiKey, {
+      voiceName: s.voiceName,
       speed: s.speed,
       languageCode: s.languageCode,
     });
-    pa.sentenceTimes = buildSentenceTimes(alignment);
 
     if (!state.get().playingAll) return; // stopped while fetching
 
     const ctx = await getAudioContext();
     pa.buffer = await ctx.decodeAudioData(await blob.arrayBuffer());
+    pa.sentenceTimes = buildSentenceTimes(timepoints, sentences, pa.buffer.duration);
 
     if (!state.get().playingAll) return;
 

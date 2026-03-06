@@ -47,9 +47,9 @@ export function createState() {
     apiKey: stored?.apiKey || '',
     activeTextId: stored?.activeTextId || null,
     texts: stored?.texts || [],
-    voiceId: stored?.voiceId || 'EXAVITQu4vr4xnSDxMaL',
+    voiceName: stored?.voiceName || '',
     speed: stored?.speed ?? 1.0,
-    languageCode: stored?.languageCode || 'auto',
+    languageCode: stored?.languageCode?.includes('-') ? stored.languageCode : 'nl-NL',
     textHidden: stored?.textHidden ?? false,
     holdMic: stored?.holdMic ?? false,
     // Runtime-only (not persisted)
@@ -82,8 +82,8 @@ export function createState() {
       this.persist();
     },
 
-    setVoiceId(id) {
-      state.voiceId = id;
+    setVoiceName(name) {
+      state.voiceName = name;
       this.persist();
     },
 
@@ -179,7 +179,7 @@ export function createState() {
         apiKey: state.apiKey,
         activeTextId: state.activeTextId,
         texts: state.texts,
-        voiceId: state.voiceId,
+        voiceName: state.voiceName,
         speed: state.speed,
         languageCode: state.languageCode,
         textHidden: state.textHidden,
