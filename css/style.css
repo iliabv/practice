@@ -392,7 +392,8 @@ main {
   transition: color 0.15s;
 }
 
-.history-delete:hover {
+.history-delete:hover,
+.history-delete.confirming {
   color: var(--accent);
 }
 
@@ -722,6 +723,11 @@ main {
 
 .word-card-btn:hover {
   opacity: 0.7;
+}
+
+.word-card-btn.confirming {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .word-card-btn.check {

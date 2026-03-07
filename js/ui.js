@@ -1,5 +1,30 @@
 const $ = (sel) => document.querySelector(sel);
 
+/** Make a delete button require two clicks: first shows '?', second confirms. */
+function confirmDelete(btn, onConfirm) {
+  const original = btn.textContent;
+  let timer;
+  const reset = () => {
+    clearTimeout(timer);
+    delete btn.dataset.confirming;
+    btn.textContent = original;
+    btn.classList.remove('confirming');
+  };
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (btn.dataset.confirming) {
+      clearTimeout(timer);
+      onConfirm();
+    } else {
+      btn.dataset.confirming = '1';
+      btn.textContent = '?';
+      btn.classList.add('confirming');
+      timer = setTimeout(reset, 5000);
+    }
+  });
+}
+
 /**
  * Compute sentence background color from loop count.
  * Subtle bg at 0 → orange at 1 → gradually to dark green at 10+ loops.
@@ -231,11 +256,7 @@ export function renderHistory(texts, { practiceHref, onDelete }) {
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'history-delete';
     deleteBtn.textContent = '×';
-    deleteBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      onDelete(entry.id);
-    });
+    confirmDelete(deleteBtn, () => onDelete(entry.id));
 
     item.appendChild(preview);
     item.appendChild(meta);
@@ -430,7 +451,13 @@ export function showWordPopup(wordSpan, { word, translation, isSaved, onSave, on
   `;
 
   const btn = popup.querySelector('button');
-  if (btn) btn.onclick = handler;
+  if (btn) {
+    if (isSaved) {
+      confirmDelete(btn, handler);
+    } else {
+      btn.onclick = handler;
+    }
+  }
 
   // Make visible off-screen first to measure dimensions
   popup.style.top = '0px';
@@ -587,7 +614,7 @@ export function renderWordPractice(words, { onCheck, onPlay, onDelete, sortMode,
     deleteBtn.className = 'word-card-btn';
     deleteBtn.textContent = '×';
     deleteBtn.title = 'Delete word';
-    deleteBtn.onclick = () => onDelete(wordEntry.id);
+    confirmDelete(deleteBtn, () => onDelete(wordEntry.id));
 
     inputWrap.appendChild(revealBtn);
 
