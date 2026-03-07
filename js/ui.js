@@ -31,6 +31,11 @@ export const els = {
   toggleTextBtn: $('#toggle-text-btn'),
   holdMicBtn: $('#hold-mic-btn'),
   fullPlayer: $('#full-player'),
+  wordPopup: $('#word-popup'),
+  wordsView: $('#words-view'),
+  wordCardsContainer: $('#word-cards-container'),
+  sortRecentBtn: $('#sort-recent-btn'),
+  sortSmartBtn: $('#sort-smart-btn'),
 };
 
 /** Show an error banner. Click to dismiss. */
@@ -65,10 +70,14 @@ export function showPracticeView() {
  * @param {Map<number, number>} lineBreaks - maps sentence index → number of \n chars before it
  */
 export function renderSentences(sentences, progress, onClick, lineBreaks = new Map()) {
-  // Detach inline player before clearing
+  // Detach inline player and word popup before clearing
   const player = els.inlinePlayer;
   if (player.parentNode === els.sentencesPanel) {
     els.sentencesPanel.removeChild(player);
+  }
+  const popup = els.wordPopup;
+  if (popup.parentNode === els.sentencesPanel) {
+    els.sentencesPanel.removeChild(popup);
   }
 
   els.sentencesPanel.innerHTML = '';
@@ -92,8 +101,9 @@ export function renderSentences(sentences, progress, onClick, lineBreaks = new M
     els.sentencesPanel.appendChild(span);
   });
 
-  // Re-append inline player
+  // Re-append inline player and word popup
   els.sentencesPanel.appendChild(player);
+  els.sentencesPanel.appendChild(popup);
 }
 
 /** Highlight the active sentence and remove highlight from others. */
@@ -342,6 +352,233 @@ export function clearFullPlayer() {
 export function setFullPlayingSentence(index) {
   els.sentencesPanel.querySelectorAll('.sentence').forEach((span) => {
     span.classList.toggle('full-playing', Number(span.dataset.index) === index);
+  });
+}
+
+// --- Word interaction ---
+
+/**
+ * Replace sentence text with clickable word spans.
+ * @param {number} index - sentence index
+ * @param {function} onWordClick - called with (word, wordSpan, sentenceText)
+ */
+export function enableWordInteraction(index, onWordClick) {
+  const span = els.sentencesPanel.querySelector(`.sentence[data-index="${index}"]`);
+  if (!span || span.querySelector('.word')) return; // already enabled
+  const text = span.textContent;
+  span.innerHTML = '';
+  // Split into words preserving whitespace
+  const parts = text.split(/(\s+)/);
+  parts.forEach(part => {
+    if (/^\s+$/.test(part)) {
+      span.appendChild(document.createTextNode(part));
+    } else {
+      const wordSpan = document.createElement('span');
+      wordSpan.className = 'word';
+      wordSpan.textContent = part;
+      // Strip punctuation for the word lookup
+      const cleanWord = part.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+      wordSpan.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (cleanWord) onWordClick(cleanWord, wordSpan, text);
+      });
+      span.appendChild(wordSpan);
+    }
+  });
+}
+
+/** Restore sentence to plain text. */
+export function disableWordInteraction(index) {
+  const span = els.sentencesPanel.querySelector(`.sentence[data-index="${index}"]`);
+  if (span) span.textContent = span.textContent;
+}
+
+// --- Word popup ---
+
+/**
+ * Show word popup above the clicked word span.
+ * @param {HTMLElement} wordSpan
+ * @param {object} opts - { word, translation, isSaved, onSave, onDelete }
+ */
+export function showWordPopup(wordSpan, { word, translation, isSaved, onSave, onDelete }) {
+  const popup = els.wordPopup;
+  const handler = isSaved ? onDelete : onSave;
+  const translationHtml = translation === null
+    ? '<span class="word-popup-translation"><div class="spinner"></div></span>'
+    : `<span class="word-popup-translation">${escapeHtml(translation)}</span>`;
+
+  let btnHtml = '';
+  if (handler) {
+    const btnClass = isSaved ? 'word-popup-btn delete' : 'word-popup-btn save';
+    const btnText = isSaved ? 'Delete' : 'Save';
+    btnHtml = `<button class="${btnClass}">${btnText}</button>`;
+  }
+
+  popup.innerHTML = `
+    <span class="word-popup-word">${escapeHtml(word)}</span>
+    ${translationHtml}
+    ${btnHtml}
+  `;
+
+  const btn = popup.querySelector('button');
+  if (btn) btn.onclick = handler;
+
+  // Make visible off-screen first to measure dimensions
+  popup.style.top = '0px';
+  popup.style.left = '-9999px';
+  popup.classList.remove('hidden');
+
+  // Position above the word (now offsetHeight/offsetWidth are accurate)
+  const wordRect = wordSpan.getBoundingClientRect();
+  const panelRect = els.sentencesPanel.getBoundingClientRect();
+  let left = wordRect.left - panelRect.left;
+  let top = wordRect.top - panelRect.top - popup.offsetHeight - 6;
+
+  // If popup would go above the panel, show below the word instead
+  if (top < 0) {
+    top = wordRect.bottom - panelRect.top + 6;
+  }
+
+  // Keep within panel horizontal bounds
+  const popupWidth = popup.offsetWidth;
+  if (left + popupWidth > panelRect.width) {
+    left = Math.max(0, panelRect.width - popupWidth);
+  }
+
+  popup.style.top = `${top}px`;
+  popup.style.left = `${left}px`;
+}
+
+/** Hide and clear word popup. */
+export function hideWordPopup() {
+  els.wordPopup.classList.add('hidden');
+  els.wordPopup.innerHTML = '';
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// --- Words view ---
+
+export function showWordsView() {
+  els.inputView.classList.add('hidden');
+  els.practiceView.classList.add('hidden');
+  els.wordsView.classList.remove('hidden');
+}
+
+export function hideWordsView() {
+  els.wordsView.classList.add('hidden');
+}
+
+/**
+ * Render word practice cards.
+ * @param {Array} words - saved words array
+ * @param {object} opts - { onCheck, onPlay, onDelete, sortMode, onSortChange }
+ */
+export function renderWordPractice(words, { onCheck, onPlay, onDelete, sortMode, onSortChange }) {
+  const container = els.wordCardsContainer;
+  container.innerHTML = '';
+
+  // Sort controls
+  els.sortRecentBtn.classList.toggle('active', sortMode === 'recent');
+  els.sortSmartBtn.classList.toggle('active', sortMode === 'smart');
+  els.sortRecentBtn.onclick = () => onSortChange('recent');
+  els.sortSmartBtn.onclick = () => onSortChange('smart');
+
+  if (words.length === 0) {
+    container.innerHTML = '<div class="word-cards-empty">No saved words yet. Click words in practice sentences to save them.</div>';
+    return;
+  }
+
+  words.forEach(wordEntry => {
+    const card = document.createElement('div');
+    card.className = 'word-card';
+
+    const sentenceDiv = document.createElement('div');
+    sentenceDiv.className = 'word-card-sentence';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'word-card-gap';
+    input.placeholder = '…';
+
+    const settled = () => input.classList.contains('correct') || input.classList.contains('incorrect');
+
+    let checkBtn; // forward reference
+
+    const doCheck = () => {
+      if (settled()) return;
+      const val = input.value.trim();
+      if (!val) return;
+      const correct = val.toLowerCase() === wordEntry.word.toLowerCase();
+      const cls = correct ? 'correct' : 'incorrect';
+      input.classList.add(cls);
+      if (checkBtn) checkBtn.classList.add(cls);
+      if (!correct) input.value = wordEntry.word;
+      onCheck(wordEntry.id, correct);
+    };
+
+    // Build sentence with gap replacing the saved word
+    // Use case-insensitive indexOf instead of \b regex (works with Unicode)
+    const lowerSentence = wordEntry.sentence.toLowerCase();
+    const wordLower = wordEntry.word.toLowerCase();
+    const idx = lowerSentence.indexOf(wordLower);
+
+    if (idx >= 0) {
+      const before = wordEntry.sentence.slice(0, idx);
+      const after = wordEntry.sentence.slice(idx + wordEntry.word.length);
+      if (before) sentenceDiv.appendChild(document.createTextNode(before));
+      sentenceDiv.appendChild(input);
+      if (after) sentenceDiv.appendChild(document.createTextNode(after));
+    } else {
+      sentenceDiv.appendChild(document.createTextNode(wordEntry.sentence));
+      sentenceDiv.appendChild(document.createTextNode(' '));
+      sentenceDiv.appendChild(input);
+    }
+
+    checkBtn = document.createElement('button');
+    checkBtn.className = 'word-card-btn check';
+    checkBtn.textContent = '✓';
+    checkBtn.title = 'Check answer';
+    checkBtn.onclick = doCheck;
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); doCheck(); }
+    });
+
+    const revealBtn = document.createElement('button');
+    revealBtn.className = 'word-card-btn';
+    revealBtn.textContent = '?';
+    revealBtn.title = 'Reveal answer';
+    revealBtn.onclick = () => {
+      if (settled()) return;
+      input.value = wordEntry.word;
+      input.classList.add('incorrect');
+      checkBtn.classList.add('incorrect');
+      onCheck(wordEntry.id, false);
+    };
+
+    const playBtn = document.createElement('button');
+    playBtn.className = 'word-card-btn';
+    playBtn.textContent = '▶';
+    playBtn.title = 'Play sentence';
+    playBtn.onclick = () => onPlay(wordEntry);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'word-card-btn';
+    deleteBtn.textContent = '×';
+    deleteBtn.title = 'Delete word';
+    deleteBtn.onclick = () => onDelete(wordEntry.id);
+
+    card.appendChild(sentenceDiv);
+    card.appendChild(checkBtn);
+    card.appendChild(revealBtn);
+    card.appendChild(playBtn);
+    card.appendChild(deleteBtn);
+    container.appendChild(card);
   });
 }
 

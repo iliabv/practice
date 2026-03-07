@@ -10,7 +10,11 @@ import {
   renderPlayer, clearPlayer, renderHistory, setTextHidden, setHoldMic, setSentenceRevealed,
   renderFullPlayerIdle, renderFullPlayerLoading, renderFullPlayer, updateFullPlayerProgress, updateFullPlayerButton,
   clearFullPlayer, setFullPlayingSentence,
+  enableWordInteraction, disableWordInteraction,
+  showWordPopup, hideWordPopup,
+  showWordsView, hideWordsView, renderWordPractice,
 } from './ui.js';
+import { translateText } from './translate.js';
 
 const state = createState();
 let sentences = [];
@@ -35,6 +39,9 @@ function setHash(hash) {
 
 function getRouteFromHash() {
   const hash = location.hash || '#/';
+  if (hash === '#/words') {
+    return { view: 'words', textId: null };
+  }
   if (hash.startsWith('#/practice?text=')) {
     return { view: 'practice', textId: decodeURIComponent(hash.slice('#/practice?text='.length)) };
   }
@@ -89,6 +96,12 @@ function init() {
 
   // Try hash-driven resume, then fall back to state-driven resume
   const route = getRouteFromHash();
+
+  if (route.view === 'words') {
+    enterWordsView();
+    return;
+  }
+
   if (route.view === 'practice' && route.textId) {
     state.setActiveTextId(route.textId);
   }
@@ -219,6 +232,112 @@ function onHistoryDelete(id) {
   refreshHistory();
 }
 
+// --- Word interaction state ---
+let wordSortMode = 'recent';
+let activeWordIndex = -1; // sentence index that has word interaction enabled
+
+function dismissWordPopup() {
+  hideWordPopup();
+}
+
+async function onWordClick(word, wordSpan, sentenceText) {
+  const s = state.get();
+  const isSaved = state.isWordSaved(word, sentenceText);
+
+  const onSave = async () => {
+    const savedWord = state.saveWord({
+      word,
+      sentence: sentenceText,
+      translation: currentTranslation || '',
+      languageCode: s.languageCode,
+      voiceName: s.voiceName,
+      speed: s.speed,
+    });
+    // Update popup to show delete button
+    showWordPopup(wordSpan, {
+      word,
+      translation: currentTranslation || '',
+      isSaved: true,
+      onSave: null,
+      onDelete: () => {
+        state.deleteWord(savedWord.id);
+        hideWordPopup();
+      },
+    });
+  };
+
+  const onDelete = () => {
+    const saved = state.getSavedWord(word, sentenceText);
+    if (saved) state.deleteWord(saved.id);
+    hideWordPopup();
+  };
+
+  let currentTranslation = null;
+
+  // Show popup with spinner while loading translation (save hidden until translation loads)
+  showWordPopup(wordSpan, {
+    word,
+    translation: null,
+    isSaved,
+    onSave: null,
+    onDelete,
+  });
+
+  // Fetch translation
+  try {
+    const sourceLang = s.languageCode.split('-')[0];
+    currentTranslation = await translateText(word, s.apiKey, sourceLang);
+    // Re-render popup with translation (if still visible)
+    if (!els.wordPopup.classList.contains('hidden')) {
+      const stillSaved = state.isWordSaved(word, sentenceText);
+      showWordPopup(wordSpan, {
+        word,
+        translation: currentTranslation,
+        isSaved: stillSaved,
+        onSave,
+        onDelete: () => {
+          const saved = state.getSavedWord(word, sentenceText);
+          if (saved) state.deleteWord(saved.id);
+          hideWordPopup();
+        },
+      });
+    }
+  } catch (err) {
+    console.error('Translation failed:', err);
+    if (!els.wordPopup.classList.contains('hidden')) {
+      const stillSaved = state.isWordSaved(word, sentenceText);
+      showWordPopup(wordSpan, {
+        word,
+        translation: '(translation failed)',
+        isSaved: stillSaved,
+        onSave,
+        onDelete: () => {
+          const saved = state.getSavedWord(word, sentenceText);
+          if (saved) state.deleteWord(saved.id);
+          hideWordPopup();
+        },
+      });
+    }
+  }
+}
+
+// Click outside sentences/popups/player → close popups
+// Use mousedown instead of click: captures target before popup re-renders on save
+document.addEventListener('mousedown', (e) => {
+  const target = e.target;
+  if (target.closest('.sentence')) return;
+  if (target.closest('.inline-player')) return;
+  if (target.closest('.word-popup')) return;
+  if (!els.wordPopup.classList.contains('hidden')) {
+    hideWordPopup();
+  }
+  if (!els.inlinePlayer.classList.contains('hidden')) {
+    abortLoop();
+    state.setPhase('idle');
+    clearPlayer();
+  }
+});
+
 /** Stop any in-flight loop: halt audio/recording, bump generation, un-reveal text. */
 function abortLoop() {
   const prev = state.get().activeSentenceIndex;
@@ -226,7 +345,12 @@ function abortLoop() {
   if (state.get().phase === 'recording' || state.get().phase === 'preparing') stopRecording();
   resolveRecordTrigger = null;
   loopGeneration++;
-  if (prev >= 0) setSentenceRevealed(prev, false);
+  if (prev >= 0) {
+    setSentenceRevealed(prev, false);
+    disableWordInteraction(prev);
+  }
+  hideWordPopup();
+  activeWordIndex = -1;
 }
 
 // --- Sentence click ---
@@ -239,10 +363,21 @@ function onSentenceClick(index) {
     return;
   }
 
+  // Disable word interaction on previous sentence
+  if (activeWordIndex >= 0) {
+    disableWordInteraction(activeWordIndex);
+    activeWordIndex = -1;
+  }
+  hideWordPopup();
+
   abortLoop();
   state.setActiveSentence(index);
   setActiveSentence(index);
   updatePlayer();
+
+  // Enable word interaction on new active sentence
+  enableWordInteraction(index, onWordClick);
+  activeWordIndex = index;
 }
 
 /** Cancel any in-flight loop, stop audio/recording, and clear inline player. */
@@ -251,6 +386,7 @@ function cancelActiveLoop() {
   state.setActiveSentence(-1);
   setActiveSentence(-1);
   clearPlayer();
+  hideWordPopup();
 }
 
 // --- Record trigger ---
@@ -380,8 +516,14 @@ async function runLoop() {
   }
 }
 
-/** Escape handler: close player first, deselect sentence on second press. */
+/** Escape handler: close popup first, then player, then deselect sentence. */
 function onEscape() {
+  // Close word popup first
+  if (!els.wordPopup.classList.contains('hidden')) {
+    hideWordPopup();
+    return;
+  }
+
   const playerOpen = !els.inlinePlayer.classList.contains('hidden');
 
   if (playerOpen) {
@@ -392,6 +534,10 @@ function onEscape() {
   }
 
   if (state.get().activeSentenceIndex >= 0) {
+    if (activeWordIndex >= 0) {
+      disableWordInteraction(activeWordIndex);
+      activeWordIndex = -1;
+    }
     state.setActiveSentence(-1);
     setActiveSentence(-1);
   }
@@ -656,9 +802,71 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// --- Words view ---
+
+function enterWordsView() {
+  hideWordsView(); // reset
+  cancelActiveLoop();
+  stopPlayAll();
+  clearFullPlayer();
+  els.inputView.classList.add('hidden');
+  els.practiceView.classList.add('hidden');
+  showWordsView();
+  renderWordCards();
+}
+
+function leaveWordsView() {
+  hideWordsView();
+}
+
+function renderWordCards() {
+  const words = state.getSavedWordsSorted(wordSortMode);
+  renderWordPractice(words, {
+    onCheck: (wordId, correct) => {
+      state.recordPractice(wordId, correct);
+    },
+    onPlay: async (wordEntry) => {
+      try {
+        const blob = await textToSpeech(wordEntry.sentence, state.get().apiKey, {
+          voiceName: wordEntry.voiceName,
+          speed: wordEntry.speed,
+          languageCode: wordEntry.languageCode,
+        });
+        await playBlob(blob);
+      } catch (err) {
+        console.error('TTS playback failed:', err);
+        showBanner(err.message || 'Playback failed');
+      }
+    },
+    onDelete: (id) => {
+      state.deleteWord(id);
+      renderWordCards();
+    },
+    sortMode: wordSortMode,
+    onSortChange: (mode) => {
+      wordSortMode = mode;
+      renderWordCards();
+    },
+  });
+}
+
 // --- Hash-based navigation ---
 window.addEventListener('hashchange', () => {
   const route = getRouteFromHash();
+  if (route.view === 'words') {
+    leaveWordsView(); // clean up if already in words
+    if (state.getActiveText()) {
+      // Coming from practice view
+      stopPlayAll();
+      clearFullPlayer();
+      cancelActiveLoop();
+      releasePipeline();
+    }
+    enterWordsView();
+    return;
+  }
+  // Leaving words view if we were in it
+  leaveWordsView();
   if (route.view === 'input') {
     if (!state.getActiveText()) return; // already on input view
     leavePracticeView();

@@ -503,6 +503,219 @@ main {
   outline-color: var(--accent);
 }
 
+/* Word interaction in active sentences */
+.sentence.active .word {
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background-color 0.1s;
+}
+
+.sentence.active .word:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Word popup */
+.word-popup {
+  position: absolute;
+  z-index: 20;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.word-popup.hidden {
+  display: none;
+}
+
+.word-popup-word {
+  font-weight: 600;
+}
+
+.word-popup-translation {
+  color: var(--text-muted);
+}
+
+.word-popup-btn {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.word-popup-btn:hover {
+  opacity: 0.8;
+}
+
+.word-popup-btn.save {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.word-popup-btn.delete {
+  color: var(--accent);
+}
+
+/* Word practice link */
+#word-practice-link {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 1rem;
+  transition: opacity 0.15s;
+}
+
+#word-practice-link:hover {
+  opacity: 0.7;
+}
+
+/* Words view */
+.words-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.words-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  flex: 1;
+}
+
+.words-back-link {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 1rem;
+  transition: opacity 0.15s;
+}
+
+.words-back-link:hover {
+  opacity: 0.7;
+}
+
+.words-sort-controls {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.words-sort-controls button {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.words-sort-controls button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Word cards */
+.word-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin-bottom: 0.5rem;
+}
+
+.word-card-sentence {
+  flex: 1;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.word-card-gap {
+  display: inline-block;
+  width: 8em;
+  padding: 0.15rem 0.3rem;
+  border: none;
+  border-bottom: 2px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: inherit;
+  font-family: inherit;
+  outline: none;
+  text-align: center;
+}
+
+.word-card-gap:focus:not(.correct):not(.incorrect) {
+  border-bottom-color: var(--accent);
+}
+
+.word-card-gap.correct {
+  border-bottom-color: #4caf50 !important;
+  color: #4caf50;
+}
+
+.word-card-gap.incorrect {
+  border-bottom-color: #f44336 !important;
+  color: #f44336;
+}
+
+.word-card-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.word-card-btn:hover {
+  opacity: 0.7;
+}
+
+.word-card-btn.check {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+.word-card-btn.check.correct {
+  background: #4caf50;
+  border-color: #4caf50;
+}
+
+.word-card-btn.check.incorrect {
+  background: #f44336;
+  border-color: #f44336;
+}
+
+.word-cards-empty {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 2rem;
+}
+
 .hidden {
   display: none !important;
 }

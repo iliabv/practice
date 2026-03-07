@@ -24,7 +24,7 @@ python3 -m http.server 8000
 ```
 Then open `http://localhost:8000`. Testing is manual in the browser.
 
-Requires a Google Cloud API key (with Text-to-Speech API enabled) and microphone access for full functionality.
+Requires a Google Cloud API key (with Text-to-Speech and Cloud Translation APIs enabled) and microphone access for full functionality.
 
 ## Architecture
 
@@ -37,14 +37,24 @@ Requires a Google Cloud API key (with Text-to-Speech API enabled) and microphone
 - **`recorder.js`** — Web Audio MediaRecorder wrapper, returns Promise resolving to audio Blob
 - **`audio-utils.js`** — Audio playback (`playBlob`, `stopPlayback`) with settled-flag race condition prevention
 - **`sentence-parser.js`** — Splits text on sentence boundaries using lookbehind regex
+- **`translate.js`** — Google Cloud Translation API wrapper with Cache API caching (cache name: `'google-translate-cache'`); exports `translateText(text, apiKey, sourceLanguage)`
+- **`spaced-repetition.js`** — SM-2 variant spaced repetition algorithm; exports `updateSR(word, correct)` and `smartSort(words)`
 
 ### Practice Loop Flow
 
 1. Play original sentence (TTS) → 2. Await user record press → 3. Record user speech → 4. Play recording back → 5. Play original again → 6. Increment loop count
+
+### Word Practice Flow
+
+1. Click active sentence word → popup with translation (Google Translate API) + Save button
+2. Saved words persist in `state.savedWords` with TTS settings snapshot
+3. `#/words` view shows cloze/gap-fill cards sorted by recent or smart (spaced repetition)
+4. Type answer → green (correct) / red (incorrect) + SR fields updated
 
 ### Conventions
 
 - CSS variables for theming (`--bg`, `--surface`, `--text`, etc.)
 - `.hidden` class for view toggling
 - kebab-case for DOM IDs and CSS classes, camelCase for JS
-- No external dependencies — browser APIs only (Web Audio, MediaRecorder, localStorage, Cache API) plus Google Cloud TTS REST API
+- No external dependencies — browser APIs only (Web Audio, MediaRecorder, localStorage, Cache API) plus Google Cloud TTS and Translation REST APIs
+- Hash-based routing: `#/` (input), `#/practice?text=...` (practice), `#/words` (word practice)

@@ -46,12 +46,14 @@
     <div id="practice-view" class="hidden">
       <div class="sentences-panel" id="sentences-panel">
         <div class="inline-player hidden" id="inline-player"></div>
+        <div class="word-popup hidden" id="word-popup"></div>
       </div>
       <div id="full-player" class="full-player hidden"></div>
       <div class="practice-controls">
         <a id="back-btn" href="#/">← Back</a>
         <button id="toggle-text-btn" title="Toggle text visibility">Hide text</button>
         <button id="hold-mic-btn" title="Keep microphone active between recordings">Hold mic</button>
+        <a id="word-practice-link" href="#/words">Word practice</a>
       </div>
       <div class="shortcuts-help">
         <div class="shortcut"><kbd>Space</kbd> Play / Stop</div>
@@ -61,6 +63,19 @@
         <div class="shortcut"><kbd>T</kbd> <kbd>H</kbd> Toggle text visibility</div>
         <div class="shortcut"><kbd>P</kbd> Play / pause all</div>
       </div>
+    </div>
+
+    <!-- Words view -->
+    <div id="words-view" class="hidden">
+      <div class="words-header">
+        <a href="#/" class="words-back-link">← Back</a>
+        <h2>Word Practice</h2>
+        <div class="words-sort-controls">
+          <button id="sort-recent-btn" class="active">Recent</button>
+          <button id="sort-smart-btn">Smart</button>
+        </div>
+      </div>
+      <div id="word-cards-container"></div>
     </div>
   </main>
 

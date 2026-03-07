@@ -1,3 +1,5 @@
+import { updateSR, smartSort } from './spaced-repetition.js';
+
 const STORAGE_KEY = 'dutch-practice';
 
 function generateId() {
@@ -52,6 +54,7 @@ export function createState() {
     languageCode: stored?.languageCode?.includes('-') ? stored.languageCode : 'nl-NL',
     textHidden: stored?.textHidden ?? false,
     holdMic: stored?.holdMic ?? false,
+    savedWords: stored?.savedWords || [],
     // Runtime-only (not persisted)
     activeSentenceIndex: -1,
     phase: 'idle',
@@ -174,6 +177,65 @@ export function createState() {
       state.userRecording = blob;
     },
 
+    // --- Saved words ---
+
+    saveWord({ word, sentence, translation, languageCode, voiceName, speed }) {
+      const entry = {
+        id: generateId(),
+        word,
+        wordLower: word.toLowerCase(),
+        sentence,
+        translation,
+        languageCode,
+        voiceName,
+        speed,
+        createdAt: Date.now(),
+        practices: [],
+        easeFactor: 2.5,
+        interval: 1,
+        nextDue: 0,
+      };
+      state.savedWords.push(entry);
+      this.persist();
+      return entry;
+    },
+
+    deleteWord(id) {
+      state.savedWords = state.savedWords.filter(w => w.id !== id);
+      this.persist();
+    },
+
+    isWordSaved(word, sentence) {
+      const lower = word.toLowerCase();
+      return state.savedWords.some(w => w.wordLower === lower && w.sentence === sentence);
+    },
+
+    getSavedWord(word, sentence) {
+      const lower = word.toLowerCase();
+      return state.savedWords.find(w => w.wordLower === lower && w.sentence === sentence) || null;
+    },
+
+    recordPractice(wordId, correct) {
+      const word = state.savedWords.find(w => w.id === wordId);
+      if (!word) return;
+      word.practices.push({ at: Date.now(), correct });
+      const sr = updateSR(word, correct);
+      word.easeFactor = sr.easeFactor;
+      word.interval = sr.interval;
+      word.nextDue = sr.nextDue;
+      this.persist();
+    },
+
+    getSavedWords() {
+      return state.savedWords;
+    },
+
+    getSavedWordsSorted(mode) {
+      if (mode === 'smart') return smartSort(state.savedWords);
+      // 'recent' — newest first
+      return [...state.savedWords].sort((a, b) => b.createdAt - a.createdAt);
+    },
+
     persist() {
       save({
         apiKey: state.apiKey,
@@ -184,6 +246,7 @@ export function createState() {
         languageCode: state.languageCode,
         textHidden: state.textHidden,
         holdMic: state.holdMic,
+        savedWords: state.savedWords,
       });
     },
 
