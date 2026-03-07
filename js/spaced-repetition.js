@@ -9,7 +9,7 @@ export function updateSR(word, correct) {
     interval = interval <= 1 ? 6 : Math.round(interval * easeFactor);
     easeFactor = Math.max(1.3, easeFactor + 0.1);
   } else {
-    interval = 1;
+    interval = 0;
     easeFactor = Math.max(1.3, easeFactor - 0.3);
   }
 

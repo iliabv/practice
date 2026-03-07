@@ -527,7 +527,6 @@ export function renderWordPractice(words, { onCheck, onPlay, onDelete, sortMode,
       const cls = correct ? 'correct' : 'incorrect';
       input.classList.add(cls);
       if (checkBtn) checkBtn.classList.add(cls);
-      if (!correct) input.value = wordEntry.word;
       onCheck(wordEntry.id, correct);
     };
 
@@ -537,16 +536,20 @@ export function renderWordPractice(words, { onCheck, onPlay, onDelete, sortMode,
     const wordLower = wordEntry.word.toLowerCase();
     const idx = lowerSentence.indexOf(wordLower);
 
+    const inputWrap = document.createElement('span');
+    inputWrap.className = 'word-card-gap-wrap';
+    inputWrap.appendChild(input);
+
     if (idx >= 0) {
       const before = wordEntry.sentence.slice(0, idx);
       const after = wordEntry.sentence.slice(idx + wordEntry.word.length);
       if (before) sentenceDiv.appendChild(document.createTextNode(before));
-      sentenceDiv.appendChild(input);
+      sentenceDiv.appendChild(inputWrap);
       if (after) sentenceDiv.appendChild(document.createTextNode(after));
     } else {
       sentenceDiv.appendChild(document.createTextNode(wordEntry.sentence));
       sentenceDiv.appendChild(document.createTextNode(' '));
-      sentenceDiv.appendChild(input);
+      sentenceDiv.appendChild(inputWrap);
     }
 
     checkBtn = document.createElement('button');
@@ -558,17 +561,20 @@ export function renderWordPractice(words, { onCheck, onPlay, onDelete, sortMode,
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); doCheck(); }
     });
+    input.addEventListener('input', () => {
+      input.classList.remove('incorrect');
+      checkBtn.classList.remove('incorrect');
+    });
 
     const revealBtn = document.createElement('button');
-    revealBtn.className = 'word-card-btn';
+    revealBtn.className = 'word-card-hint';
     revealBtn.textContent = '?';
-    revealBtn.title = 'Reveal answer';
+    revealBtn.title = wordEntry.translation || 'Reveal answer';
     revealBtn.onclick = () => {
       if (settled()) return;
-      input.value = wordEntry.word;
-      input.classList.add('incorrect');
-      checkBtn.classList.add('incorrect');
-      onCheck(wordEntry.id, false);
+      input.value = '';
+      input.placeholder = wordEntry.word;
+      input.focus();
     };
 
     const playBtn = document.createElement('button');
@@ -583,9 +589,10 @@ export function renderWordPractice(words, { onCheck, onPlay, onDelete, sortMode,
     deleteBtn.title = 'Delete word';
     deleteBtn.onclick = () => onDelete(wordEntry.id);
 
+    inputWrap.appendChild(revealBtn);
+
     card.appendChild(sentenceDiv);
     card.appendChild(checkBtn);
-    card.appendChild(revealBtn);
     card.appendChild(playBtn);
     card.appendChild(deleteBtn);
     container.appendChild(card);
