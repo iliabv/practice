@@ -11,7 +11,10 @@
 
 <body>
   <header>
-    <h1>Practice</h1>
+    <nav class="header-nav">
+      <a href="#/" class="nav-link" id="nav-text">Text</a>
+      <a href="#/words" class="nav-link" id="nav-words">Words</a>
+    </nav>
     <div class="header-controls">
       <div class="control-row">
         <label for="api-key-input">API Key</label>
@@ -38,10 +41,7 @@
     <!-- Input view -->
     <div id="input-view">
       <textarea id="text-input" placeholder="Paste text here…" rows="10"></textarea>
-      <div class="input-actions">
-        <button id="start-btn">Start Text Practice</button>
-        <a id="input-word-practice-link" href="#/words">Word Practice</a>
-      </div>
+      <button id="start-btn">Start Practice</button>
       <div id="history-list"></div>
     </div>
 
@@ -56,7 +56,6 @@
         <a id="back-btn" href="#/">← Back</a>
         <button id="toggle-text-btn" title="Toggle text visibility">Hide text</button>
         <button id="hold-mic-btn" title="Keep microphone active between recordings">Hold mic</button>
-        <a id="word-practice-link" href="#/words">Word practice</a>
       </div>
       <div class="shortcuts-help">
         <div class="shortcut"><kbd>Space</kbd> Play / Stop</div>
@@ -71,7 +70,6 @@
     <!-- Words view -->
     <div id="words-view" class="hidden">
       <div class="words-header">
-        <a href="#/" class="words-back-link">← Back</a>
         <h2>Word Practice</h2>
         <div class="words-sort-controls">
           <button id="sort-recent-btn" class="active">Recent</button>

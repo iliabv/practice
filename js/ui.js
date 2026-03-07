@@ -32,6 +32,8 @@ export const els = {
   holdMicBtn: $('#hold-mic-btn'),
   fullPlayer: $('#full-player'),
   wordPopup: $('#word-popup'),
+  navText: $('#nav-text'),
+  navWords: $('#nav-words'),
   wordsView: $('#words-view'),
   wordCardsContainer: $('#word-cards-container'),
   sortRecentBtn: $('#sort-recent-btn'),
@@ -49,17 +51,24 @@ export function hideBanner() {
   els.banner.classList.add('hidden');
 }
 
+function setActiveNav(view) {
+  els.navText.classList.toggle('active', view === 'text');
+  els.navWords.classList.toggle('active', view === 'words');
+}
+
 /** Switch to input view. */
 export function showInputView(text) {
   els.inputView.classList.remove('hidden');
   els.practiceView.classList.add('hidden');
   els.textInput.value = text;
+  setActiveNav('text');
 }
 
 /** Switch to practice view. */
 export function showPracticeView() {
   els.inputView.classList.add('hidden');
   els.practiceView.classList.remove('hidden');
+  setActiveNav('text');
 }
 
 /**
@@ -467,6 +476,7 @@ export function showWordsView() {
   els.inputView.classList.add('hidden');
   els.practiceView.classList.add('hidden');
   els.wordsView.classList.remove('hidden');
+  setActiveNav('words');
 }
 
 export function hideWordsView() {

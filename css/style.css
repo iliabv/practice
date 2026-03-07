@@ -35,9 +35,30 @@ header {
   gap: 0.75rem;
 }
 
-header h1 {
-  font-size: 1.25rem;
+.header-nav {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.nav-link {
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.95rem;
   font-weight: 600;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.nav-link:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.nav-link.active {
+  color: var(--text);
+  background: var(--surface);
 }
 
 .header-controls {
@@ -197,22 +218,8 @@ main {
   color: var(--text);
 }
 
-.input-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+#start-btn {
   margin-top: 0.75rem;
-}
-
-#input-word-practice-link {
-  color: var(--text-muted);
-  text-decoration: none;
-  font-size: 0.9rem;
-  transition: opacity 0.15s;
-}
-
-#input-word-practice-link:hover {
-  opacity: 0.7;
 }
 
 /* Practice view */
@@ -581,18 +588,6 @@ main {
   color: var(--accent);
 }
 
-/* Word practice link */
-#word-practice-link {
-  color: var(--text);
-  text-decoration: none;
-  font-size: 1rem;
-  transition: opacity 0.15s;
-}
-
-#word-practice-link:hover {
-  opacity: 0.7;
-}
-
 /* Words view */
 .words-header {
   display: flex;
@@ -605,17 +600,6 @@ main {
   font-size: 1.25rem;
   font-weight: 600;
   flex: 1;
-}
-
-.words-back-link {
-  color: var(--text);
-  text-decoration: none;
-  font-size: 1rem;
-  transition: opacity 0.15s;
-}
-
-.words-back-link:hover {
-  opacity: 0.7;
 }
 
 .words-sort-controls {
