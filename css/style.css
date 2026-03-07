@@ -197,8 +197,22 @@ main {
   color: var(--text);
 }
 
-#start-btn {
+.input-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
   margin-top: 0.75rem;
+}
+
+#input-word-practice-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: opacity 0.15s;
+}
+
+#input-word-practice-link:hover {
+  opacity: 0.7;
 }
 
 /* Practice view */

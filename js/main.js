@@ -868,8 +868,12 @@ window.addEventListener('hashchange', () => {
   // Leaving words view if we were in it
   leaveWordsView();
   if (route.view === 'input') {
-    if (!state.getActiveText()) return; // already on input view
-    leavePracticeView();
+    if (state.getActiveText()) {
+      leavePracticeView();
+    } else {
+      showInputView('');
+      refreshHistory();
+    }
   } else if (route.view === 'practice' && route.textId) {
     leavePracticeView();
     state.setActiveTextId(route.textId);
