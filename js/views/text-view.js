@@ -10,7 +10,6 @@ export function createTextView({ state, els, ui }) {
   let loopGeneration = 0;
   let activeWordIndex = -1;
   let resolveRecordTrigger = null;
-  let active = false;
 
   // Play-all state
   const pa = {
@@ -259,7 +258,7 @@ export function createTextView({ state, els, ui }) {
     if (span) span.textContent = span.textContent;
   }
 
-  function showWordPopup(wordSpan, { word, translation, isSaved, onSave, onDelete }) {
+  function showWordPopup(anchorRect, { word, translation, isSaved, onSave, onDelete }) {
     const popup = els.wordPopup;
     const handler = isSaved ? onDelete : onSave;
     const translationHtml = translation === null
@@ -292,12 +291,11 @@ export function createTextView({ state, els, ui }) {
     popup.style.left = '-9999px';
     popup.classList.remove('hidden');
 
-    const wordRect = wordSpan.getBoundingClientRect();
     const panelRect = els.sentencesPanel.getBoundingClientRect();
-    let left = wordRect.left - panelRect.left;
-    let top = wordRect.top - panelRect.top - popup.offsetHeight - 6;
+    let left = anchorRect.left - panelRect.left;
+    let top = anchorRect.top - panelRect.top - popup.offsetHeight - 6;
     if (top < 0) {
-      top = wordRect.bottom - panelRect.top + 6;
+      top = anchorRect.bottom - panelRect.top + 6;
     }
     const popupWidth = popup.offsetWidth;
     if (left + popupWidth > panelRect.width) {
@@ -312,9 +310,9 @@ export function createTextView({ state, els, ui }) {
     els.wordPopup.innerHTML = '';
   }
 
-  // --- Word click handler ---
+  // --- Translation popup ---
 
-  async function onWordClick(word, wordSpan, sentenceText) {
+  async function showTranslationPopup(word, anchorRect, sentenceText) {
     const s = state.get();
     const isSaved = state.isWordSaved(word, sentenceText);
 
@@ -327,7 +325,7 @@ export function createTextView({ state, els, ui }) {
         voiceName: s.voiceName,
         speed: s.speed,
       });
-      showWordPopup(wordSpan, {
+      showWordPopup(anchorRect, {
         word,
         translation: currentTranslation || '',
         isSaved: true,
@@ -347,7 +345,7 @@ export function createTextView({ state, els, ui }) {
 
     let currentTranslation = null;
 
-    showWordPopup(wordSpan, {
+    showWordPopup(anchorRect, {
       word,
       translation: null,
       isSaved,
@@ -360,7 +358,7 @@ export function createTextView({ state, els, ui }) {
       currentTranslation = await translateText(word, s.apiKey, sourceLang);
       if (!els.wordPopup.classList.contains('hidden')) {
         const stillSaved = state.isWordSaved(word, sentenceText);
-        showWordPopup(wordSpan, {
+        showWordPopup(anchorRect, {
           word,
           translation: currentTranslation,
           isSaved: stillSaved,
@@ -376,7 +374,7 @@ export function createTextView({ state, els, ui }) {
       console.error('Translation failed:', err);
       if (!els.wordPopup.classList.contains('hidden')) {
         const stillSaved = state.isWordSaved(word, sentenceText);
-        showWordPopup(wordSpan, {
+        showWordPopup(anchorRect, {
           word,
           translation: '(translation failed)',
           isSaved: stillSaved,
@@ -389,6 +387,46 @@ export function createTextView({ state, els, ui }) {
         });
       }
     }
+  }
+
+  function onWordClick(word, wordSpan, sentenceText) {
+    showTranslationPopup(word, wordSpan.getBoundingClientRect(), sentenceText);
+  }
+
+  // --- Text selection popup ---
+
+  function getSentenceFromNode(node) {
+    const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+    const sentence = el?.closest('.sentence');
+    return sentence ? Number(sentence.dataset.index) : -1;
+  }
+
+  function onTextSelect() {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return;
+
+    const text = sel.toString().trim();
+    if (!text) return;
+
+    const range = sel.getRangeAt(0);
+
+    // If selection starts inside an active sentence's .word span, let word click handle it
+    const startEl = range.startContainer.nodeType === Node.TEXT_NODE
+      ? range.startContainer.parentElement : range.startContainer;
+    if (startEl?.closest('.sentence.active .word')) return;
+
+    const sentenceIndex = getSentenceFromNode(range.startContainer);
+    if (sentenceIndex < 0) return;
+
+    const sentenceText = sentences[sentenceIndex];
+    if (!sentenceText) return;
+
+    const cleanText = text.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+    if (!cleanText) return;
+
+    const anchorRect = range.getBoundingClientRect();
+    sel.removeAllRanges();
+    showTranslationPopup(cleanText, anchorRect, sentenceText);
   }
 
   // --- Abort / cancel ---
@@ -421,7 +459,7 @@ export function createTextView({ state, els, ui }) {
   function onSentenceClick(index) {
     const s = state.get();
     if (s.playingAll) pausePlayAll();
-    if (s.holdMic) ensurePipeline().catch(() => {});
+    if (s.holdMic) ensurePipeline().catch(() => { });
     if (s.activeSentenceIndex !== index) {
       if (activeWordIndex >= 0) {
         disableWordInteraction(activeWordIndex);
@@ -590,7 +628,7 @@ export function createTextView({ state, els, ui }) {
     state.setHoldMic(hold);
     setHoldMic(hold);
     if (hold) {
-      ensurePipeline().catch(() => {});
+      ensurePipeline().catch(() => { });
     } else {
       releasePipeline();
     }
@@ -806,8 +844,7 @@ export function createTextView({ state, els, ui }) {
   const NEXT_KEYS = new Set(['Enter', 'ArrowDown', 'ArrowRight']);
   const PREV_KEYS = new Set(['Backspace', 'Delete', 'ArrowUp', 'ArrowLeft']);
 
-  document.addEventListener('keydown', (e) => {
-    if (!active) return;
+  function onKeyDown(e) {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (sentences.length === 0) return;
 
@@ -854,12 +891,11 @@ export function createTextView({ state, els, ui }) {
       e.preventDefault();
       toggleHoldMic();
     }
-  });
+  }
 
   // --- Click outside to dismiss ---
 
-  document.addEventListener('mousedown', (e) => {
-    if (!active) return;
+  function onMouseDown(e) {
     const target = e.target;
     if (target.closest('.sentence')) return;
     if (target.closest('.inline-player')) return;
@@ -872,7 +908,7 @@ export function createTextView({ state, els, ui }) {
       state.setPhase('idle');
       clearPlayer();
     }
-  });
+  }
 
   return {
     enter(route) {
@@ -888,7 +924,6 @@ export function createTextView({ state, els, ui }) {
         state.setText(activeText.text, parsed.length);
       }
 
-      active = true;
       sentences = parsed;
       lineBreaks = breaks;
 
@@ -897,6 +932,9 @@ export function createTextView({ state, els, ui }) {
       ui.setActiveNav('text');
       els.toggleTextBtn.addEventListener('click', toggleTextHidden);
       els.holdMicBtn.addEventListener('click', toggleHoldMic);
+      els.sentencesPanel.addEventListener('mouseup', onTextSelect);
+      document.addEventListener('keydown', onKeyDown);
+      document.addEventListener('mousedown', onMouseDown);
       window.addEventListener('resize', positionInlinePlayer);
 
       renderSentences();
@@ -906,9 +944,11 @@ export function createTextView({ state, els, ui }) {
       renderFullPlayerIdle();
     },
     leave() {
-      active = false;
       els.toggleTextBtn.removeEventListener('click', toggleTextHidden);
       els.holdMicBtn.removeEventListener('click', toggleHoldMic);
+      els.sentencesPanel.removeEventListener('mouseup', onTextSelect);
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('resize', positionInlinePlayer);
       els.textView.classList.add('hidden');
       stopPlayAll();
