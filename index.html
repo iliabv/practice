@@ -11,10 +11,12 @@
 
 <body>
   <header>
-    <nav class="header-nav">
-      <a href="#/" class="nav-link" id="nav-text">Text</a>
-      <a href="#/words" class="nav-link" id="nav-words">Words</a>
-    </nav>
+    <div class="header-top">
+      <nav class="header-nav">
+        <a href="#/" class="nav-link" id="nav-text">Text</a>
+        <a href="#/words" class="nav-link" id="nav-words">Words</a>
+      </nav>
+    </div>
     <div class="header-controls">
       <div class="control-row">
         <label for="api-key-input">API Key</label>
@@ -26,7 +28,7 @@
       </div>
       <div class="control-row">
         <label for="speed-range">Speed <span id="speed-value">1.0</span></label>
-        <input type="range" id="speed-range" min="0.7" max="1.2" step="0.05" value="1.0">
+        <input type="range" id="speed-range" min="0.5" max="2.0" step="0.1" value="1.0">
       </div>
       <div class="control-row">
         <label for="language-select">Language</label>

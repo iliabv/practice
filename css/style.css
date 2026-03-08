@@ -27,45 +27,56 @@ body {
 header {
   max-width: 900px;
   margin: 0 auto;
-  padding: 1.5rem 0;
+  padding: 1rem 0;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.header-top {
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
 }
 
 .header-nav {
   display: flex;
-  gap: 0.25rem;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 3px;
 }
 
 .nav-link {
-  padding: 0.3rem 0.75rem;
-  border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.05);
+  padding: 0.45rem 1.25rem;
+  border-radius: 5px;
+  background: transparent;
   color: var(--text-muted);
   text-decoration: none;
   font-size: 0.95rem;
   font-weight: 600;
+  letter-spacing: 0.02em;
   transition: color 0.15s, background-color 0.15s;
 }
 
 .nav-link:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.08);
 }
 
 .nav-link.active {
   color: var(--text);
-  background: var(--surface);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .header-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .control-row {
@@ -75,32 +86,34 @@ header {
 }
 
 .control-row label {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .control-row input[type="password"] {
-  width: 200px;
-  padding: 0.35rem 0.5rem;
+  width: 180px;
+  padding: 0.3rem 0.5rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 4px;
   background: var(--surface);
   color: var(--text);
   font-size: 0.8rem;
 }
 
 .control-row select {
-  padding: 0.35rem 0.5rem;
+  padding: 0.3rem 0.5rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 4px;
   background: var(--surface);
   color: var(--text);
   font-size: 0.8rem;
 }
 
 .control-row input[type="range"] {
-  width: 100px;
+  width: 80px;
   accent-color: var(--accent);
 }
 
