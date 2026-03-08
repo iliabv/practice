@@ -577,28 +577,21 @@ main {
   color: var(--text-muted);
 }
 
-.word-popup-btn {
-  padding: 0.25rem 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 0.8rem;
+.word-popup-action {
+  background: none;
+  border: none;
   cursor: pointer;
-  transition: opacity 0.15s;
+  color: var(--text-muted);
+  font-size: 1rem;
+  padding: 0.15rem;
+  line-height: 1;
 }
 
-.word-popup-btn:hover {
-  opacity: 0.8;
+.word-popup-action:hover {
+  color: var(--text);
 }
 
-.word-popup-btn.save {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-
-.word-popup-btn.delete {
+.word-popup-action.saved {
   color: var(--accent);
 }
 

@@ -265,25 +265,48 @@ export function createTextView({ state, els, ui }) {
       ? '<span class="word-popup-translation"><div class="spinner"></div></span>'
       : `<span class="word-popup-translation">${ui.escapeHtml(translation)}</span>`;
 
-    let btnHtml = '';
+    let saveBtnHtml = '';
     if (handler) {
-      const btnClass = isSaved ? 'word-popup-btn delete' : 'word-popup-btn save';
-      const btnText = isSaved ? 'Delete' : 'Save';
-      btnHtml = `<button class="${btnClass}">${btnText}</button>`;
+      const btnClass = isSaved ? 'word-popup-action saved' : 'word-popup-action';
+      const btnText = isSaved ? '★' : '☆';
+      const btnTitle = isSaved ? 'Delete word' : 'Save word';
+      saveBtnHtml = `<button class="${btnClass}" title="${btnTitle}">${btnText}</button>`;
     }
 
     popup.innerHTML = `
       <span class="word-popup-word">${ui.escapeHtml(word)}</span>
       ${translationHtml}
-      ${btnHtml}
+      <button class="word-popup-action" title="Play pronunciation">▶</button>
+      ${saveBtnHtml}
     `;
 
-    const btn = popup.querySelector('button');
-    if (btn) {
+    const playBtn = popup.querySelector('[title="Play pronunciation"]');
+    playBtn.onclick = async () => {
+      const s = state.get();
+      if (!s.apiKey) return;
+      playBtn.textContent = '…';
+      playBtn.disabled = true;
+      try {
+        const blob = await textToSpeech(word, s.apiKey, {
+          voiceName: s.voiceName,
+          speed: s.speed,
+          languageCode: s.languageCode,
+        });
+        playBtn.textContent = '▶';
+        playBtn.disabled = false;
+        await playBlob(blob);
+      } catch {
+        playBtn.textContent = '▶';
+        playBtn.disabled = false;
+      }
+    };
+
+    const saveBtn = popup.querySelector('[title="Save word"], [title="Delete word"]');
+    if (saveBtn) {
       if (isSaved) {
-        ui.confirmDelete(btn, handler);
+        ui.confirmDelete(saveBtn, handler);
       } else {
-        btn.onclick = handler;
+        saveBtn.onclick = handler;
       }
     }
 
