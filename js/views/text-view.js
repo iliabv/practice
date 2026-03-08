@@ -401,18 +401,19 @@ export function createTextView({ state, els, ui }) {
     loopGeneration++;
     if (prev >= 0) {
       setSentenceRevealed(prev, false);
-      disableWordInteraction(prev);
     }
-    hideWordPopup();
-    activeWordIndex = -1;
   }
 
   function cancelActiveLoop() {
     abortLoop();
+    if (activeWordIndex >= 0) {
+      disableWordInteraction(activeWordIndex);
+      activeWordIndex = -1;
+    }
+    hideWordPopup();
     state.setActiveSentence(-1);
     setActiveSentence(-1);
     clearPlayer();
-    hideWordPopup();
   }
 
   // --- Sentence click ---
@@ -421,24 +422,22 @@ export function createTextView({ state, els, ui }) {
     const s = state.get();
     if (s.playingAll) pausePlayAll();
     if (s.holdMic) ensurePipeline().catch(() => {});
-    if (s.activeSentenceIndex === index) {
-      updatePlayer();
-      return;
+    if (s.activeSentenceIndex !== index) {
+      if (activeWordIndex >= 0) {
+        disableWordInteraction(activeWordIndex);
+        activeWordIndex = -1;
+      }
+      hideWordPopup();
+      abortLoop();
+      state.setActiveSentence(index);
+      setActiveSentence(index);
     }
 
-    if (activeWordIndex >= 0) {
-      disableWordInteraction(activeWordIndex);
-      activeWordIndex = -1;
+    if (activeWordIndex < 0) {
+      enableWordInteraction(index);
+      activeWordIndex = index;
     }
-    hideWordPopup();
-
-    abortLoop();
-    state.setActiveSentence(index);
-    setActiveSentence(index);
     updatePlayer();
-
-    enableWordInteraction(index);
-    activeWordIndex = index;
   }
 
   // --- Recording ---
