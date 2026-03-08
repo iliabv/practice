@@ -30,15 +30,22 @@ Requires a Google Cloud API key (with Text-to-Speech and Cloud Translation APIs 
 
 ### Module Structure (`/js/`)
 
-- **`main.js`** — Orchestration, event listeners, practice loop lifecycle, keyboard shortcuts (Space/Arrow keys/Enter/Backspace)
-- **`state.js`** — Centralized state with getter/setter pattern; persistent fields auto-save to localStorage (key: `'dutch-practice'`)
-- **`ui.js`** — DOM manipulation, view switching (input ↔ practice), sentence rendering with color coding by loop count
+- **`main.js`** — Slim orchestrator: unified `navigate(route)` function with `activeView` tracking, routing (`setHash`, `getRouteFromHash`, `textHash`), `init()`, settings listeners (api-key, voice, language, speed), `refreshVoices()`, hashchange listener. On init, resumes last active non-input view via `state.lastHash`. Creates all 3 views and wires routing between them.
+- **`state.js`** — Centralized state with getter/setter pattern; persistent fields auto-save to localStorage (key: `'dutch-practice'`). Includes `lastHash` for resuming the last active view on page load.
+- **`ui.js`** — Shared utilities only: `els` (DOM reference cache), `showBanner`, `hideBanner`, `confirmDelete`, `loopColor`, `setActiveNav`, `escapeHtml`, `formatTime`
+- **`views/main-view.js`** — Input view: history list rendering, start button handler, textarea Enter stopPropagation. Factory: `createMainView({ state, els, ui, textHash, onStartText })` → `{ enter(route), leave() }`
+- **`views/text-view.js`** — Text view: sentence rendering, inline player, practice loop, play-all, word interaction/popup, keyboard shortcuts, mousedown dismiss handler. Imports `parseSentences` to validate text on entry. Factory: `createTextView({ state, els, ui })` → `{ enter(route), leave() }`
+- **`views/words-view.js`** — Words view: cloze/gap-fill card rendering, sort controls. Factory: `createWordsView({ state, els, ui })` → `{ enter(route), leave() }`
 - **`tts.js`** — Google Cloud TTS API integration with Cache API (persistent across reloads); exports `fetchVoices`, `LANGUAGES`, `textToSpeech`, `textToSpeechWithTimestamps`; voice names fetched dynamically per language; uses v1 for standard TTS and v1beta1 for SSML mark timepoints; cache key includes all settings so no manual invalidation needed
 - **`recorder.js`** — Web Audio MediaRecorder wrapper, returns Promise resolving to audio Blob
 - **`audio-utils.js`** — Audio playback (`playBlob`, `stopPlayback`) with settled-flag race condition prevention
 - **`sentence-parser.js`** — Splits text on sentence boundaries using lookbehind regex
 - **`translate.js`** — Google Cloud Translation API wrapper with Cache API caching (cache name: `'google-translate-cache'`); exports `translateText(text, apiKey, sourceLanguage)`
 - **`spaced-repetition.js`** — SM-2 variant spaced repetition algorithm; exports `updateSR(word, correct)` and `smartSort(words)`
+
+### View Module Pattern
+
+Each view in `views/` exports a factory function returning `{ enter(route), leave() }`. All `enter` methods accept a route object `{ view, textId }` for a uniform interface. The factory receives dependencies (`state`, `els`, shared UI utils from `ui.js`) so views don't import main.js or know about each other. `leave()` only cleans up — the unified `navigate(route)` in main.js handles leaving the active view and entering the new one, with try/catch fallback to input view. Keyboard/mousedown listeners are registered once by text-view, gated by internal `active` flag.
 
 ### Practice Loop Flow
 
@@ -57,4 +64,4 @@ Requires a Google Cloud API key (with Text-to-Speech and Cloud Translation APIs 
 - `.hidden` class for view toggling
 - kebab-case for DOM IDs and CSS classes, camelCase for JS
 - No external dependencies — browser APIs only (Web Audio, MediaRecorder, localStorage, Cache API) plus Google Cloud TTS and Translation REST APIs
-- Hash-based routing: `#/` (input), `#/practice?text=...` (practice), `#/words` (word practice)
+- Hash-based routing: `#/` (input), `#/text?id=...` (text), `#/words` (word practice)

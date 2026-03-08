@@ -174,13 +174,13 @@ main {
   opacity: 0.7;
 }
 
-.practice-controls {
+.text-controls {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.practice-controls button {
+.text-controls button {
   padding: 0.6rem 1.5rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -191,11 +191,11 @@ main {
   transition: opacity 0.15s;
 }
 
-.practice-controls button:hover {
+.text-controls button:hover {
   opacity: 0.85;
 }
 
-.practice-controls button.active {
+.text-controls button.active {
   border-color: var(--border);
   background: var(--accent);
   color: #fff;
@@ -222,8 +222,8 @@ main {
   margin-top: 0.75rem;
 }
 
-/* Practice view */
-#practice-view {
+/* Text view */
+#text-view {
   display: flex;
   flex-direction: column;
   gap: 1rem;

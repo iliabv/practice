@@ -55,6 +55,7 @@ export function createState() {
     textHidden: stored?.textHidden ?? false,
     holdMic: stored?.holdMic ?? false,
     savedWords: stored?.savedWords || [],
+    lastHash: stored?.lastHash || null,
     // Runtime-only (not persisted)
     activeSentenceIndex: -1,
     phase: 'idle',
@@ -107,6 +108,11 @@ export function createState() {
 
     setHoldMic(hold) {
       state.holdMic = hold;
+      this.persist();
+    },
+
+    setLastHash(hash) {
+      state.lastHash = hash;
       this.persist();
     },
 
@@ -247,6 +253,7 @@ export function createState() {
         textHidden: state.textHidden,
         holdMic: state.holdMic,
         savedWords: state.savedWords,
+        lastHash: state.lastHash,
       });
     },
 
