@@ -433,10 +433,14 @@ export function createTextView({ state, els, ui }) {
 
     const range = sel.getRangeAt(0);
 
-    // If selection starts inside an active sentence's .word span, let word click handle it
+    // If selection is within a single .word span in the active sentence, let word click handle it
     const startEl = range.startContainer.nodeType === Node.TEXT_NODE
       ? range.startContainer.parentElement : range.startContainer;
-    if (startEl?.closest('.sentence.active .word')) return;
+    const endEl = range.endContainer.nodeType === Node.TEXT_NODE
+      ? range.endContainer.parentElement : range.endContainer;
+    const startWord = startEl?.closest('.sentence.active .word');
+    const endWord = endEl?.closest('.sentence.active .word');
+    if (startWord && endWord && startWord === endWord) return;
 
     const sentenceIndex = getSentenceFromNode(range.startContainer);
     if (sentenceIndex < 0) return;
@@ -450,6 +454,10 @@ export function createTextView({ state, els, ui }) {
     const anchorRect = range.getBoundingClientRect();
     sel.removeAllRanges();
     showTranslationPopup(cleanText, anchorRect, sentenceText);
+  }
+
+  function onTextSelectDeferred() {
+    setTimeout(onTextSelect, 0);
   }
 
   // --- Abort / cancel ---
@@ -955,7 +963,7 @@ export function createTextView({ state, els, ui }) {
       ui.setActiveNav('text');
       els.toggleTextBtn.addEventListener('click', toggleTextHidden);
       els.holdMicBtn.addEventListener('click', toggleHoldMic);
-      els.sentencesPanel.addEventListener('mouseup', onTextSelect);
+      els.sentencesPanel.addEventListener('mouseup', onTextSelectDeferred);
       document.addEventListener('keydown', onKeyDown);
       document.addEventListener('mousedown', onMouseDown);
       window.addEventListener('resize', positionInlinePlayer);
@@ -969,7 +977,7 @@ export function createTextView({ state, els, ui }) {
     leave() {
       els.toggleTextBtn.removeEventListener('click', toggleTextHidden);
       els.holdMicBtn.removeEventListener('click', toggleHoldMic);
-      els.sentencesPanel.removeEventListener('mouseup', onTextSelect);
+      els.sentencesPanel.removeEventListener('mouseup', onTextSelectDeferred);
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('resize', positionInlinePlayer);
