@@ -9,6 +9,7 @@ export function createTextView({ state, els, ui }) {
   let lineBreaks = new Map();
   let loopGeneration = 0;
   let activeWordIndex = -1;
+  let highlightedEls = [];
   let resolveRecordTrigger = null;
 
   // Play-all state
@@ -258,6 +259,87 @@ export function createTextView({ state, els, ui }) {
     if (span) span.textContent = span.textContent;
   }
 
+  function clearHighlight() {
+    for (const el of highlightedEls) {
+      if (!el.parentNode) continue;
+      if (el.classList.contains('word')) {
+        el.classList.remove('word-highlighted');
+      } else {
+        // Unwrap temporary highlight span (non-active sentence)
+        const parent = el.parentNode;
+        parent.replaceChild(document.createTextNode(el.textContent), el);
+        parent.normalize();
+      }
+    }
+    highlightedEls = [];
+  }
+
+  function highlightInSentence(word, sentenceIndex) {
+    clearHighlight();
+    if (sentenceIndex < 0) return null;
+
+    const span = els.sentencesPanel.querySelector(`.sentence[data-index="${sentenceIndex}"]`);
+    if (!span) return null;
+
+    const wordSpans = span.querySelectorAll('.word');
+    if (wordSpans.length > 0) {
+      // Active sentence with .word spans
+      const clean = w => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+      const targetWords = word.split(/\s+/);
+
+      if (targetWords.length === 1) {
+        // Single word — find matching span
+        for (const ws of wordSpans) {
+          if (clean(ws.textContent).toLowerCase() === targetWords[0].toLowerCase()) {
+            ws.classList.add('word-highlighted');
+            highlightedEls.push(ws);
+            return ws.getBoundingClientRect();
+          }
+        }
+      } else {
+        // Multi-word — find contiguous spans
+        const allWords = [...wordSpans];
+        for (let i = 0; i <= allWords.length - targetWords.length; i++) {
+          let match = true;
+          for (let j = 0; j < targetWords.length; j++) {
+            if (clean(allWords[i + j].textContent).toLowerCase() !== targetWords[j].toLowerCase()) {
+              match = false;
+              break;
+            }
+          }
+          if (match) {
+            const matched = allWords.slice(i, i + targetWords.length);
+            for (const ws of matched) {
+              ws.classList.add('word-highlighted');
+              highlightedEls.push(ws);
+            }
+            const first = matched[0].getBoundingClientRect();
+            const last = matched[matched.length - 1].getBoundingClientRect();
+            return new DOMRect(first.left, first.top, last.right - first.left, last.bottom - first.top);
+          }
+        }
+      }
+    } else {
+      // Non-active sentence — plain text, use Range to wrap
+      const textNode = [...span.childNodes].find(n => n.nodeType === Node.TEXT_NODE && n.textContent.includes(word));
+      if (textNode) {
+        const idx = textNode.textContent.indexOf(word);
+        if (idx >= 0) {
+          const range = document.createRange();
+          range.setStart(textNode, idx);
+          range.setEnd(textNode, idx + word.length);
+          const wrapper = document.createElement('span');
+          wrapper.className = 'word-highlighted';
+          range.surroundContents(wrapper);
+          highlightedEls.push(wrapper);
+          return wrapper.getBoundingClientRect();
+        }
+      }
+    }
+
+    return null;
+  }
+
   function showWordPopup(anchorRect, { word, translation, isSaved, onSave, onDelete }) {
     const popup = els.wordPopup;
     const handler = isSaved ? onDelete : onSave;
@@ -274,7 +356,6 @@ export function createTextView({ state, els, ui }) {
     }
 
     popup.innerHTML = `
-      <span class="word-popup-word">${ui.escapeHtml(word)}</span>
       ${translationHtml}
       <button class="word-popup-action" title="Play pronunciation">▶</button>
       ${saveBtnHtml}
@@ -329,6 +410,7 @@ export function createTextView({ state, els, ui }) {
   }
 
   function hideWordPopup() {
+    clearHighlight();
     els.wordPopup.classList.add('hidden');
     els.wordPopup.innerHTML = '';
   }
@@ -339,6 +421,10 @@ export function createTextView({ state, els, ui }) {
     const s = state.get();
     const isSaved = state.isWordSaved(word, sentenceText);
 
+    const sentenceIndex = sentences.indexOf(sentenceText);
+    const highlightRect = highlightInSentence(word, sentenceIndex);
+    const popupAnchor = highlightRect || anchorRect;
+
     const onSave = async () => {
       const savedWord = state.saveWord({
         word,
@@ -348,7 +434,7 @@ export function createTextView({ state, els, ui }) {
         voiceName: s.voiceName,
         speed: s.speed,
       });
-      showWordPopup(anchorRect, {
+      showWordPopup(popupAnchor, {
         word,
         translation: currentTranslation || '',
         isSaved: true,
@@ -368,7 +454,7 @@ export function createTextView({ state, els, ui }) {
 
     let currentTranslation = null;
 
-    showWordPopup(anchorRect, {
+    showWordPopup(popupAnchor, {
       word,
       translation: null,
       isSaved,
@@ -381,7 +467,7 @@ export function createTextView({ state, els, ui }) {
       currentTranslation = await translateText(word, s.apiKey, sourceLang);
       if (!els.wordPopup.classList.contains('hidden')) {
         const stillSaved = state.isWordSaved(word, sentenceText);
-        showWordPopup(anchorRect, {
+        showWordPopup(popupAnchor, {
           word,
           translation: currentTranslation,
           isSaved: stillSaved,
@@ -397,7 +483,7 @@ export function createTextView({ state, els, ui }) {
       console.error('Translation failed:', err);
       if (!els.wordPopup.classList.contains('hidden')) {
         const stillSaved = state.isWordSaved(word, sentenceText);
-        showWordPopup(anchorRect, {
+        showWordPopup(popupAnchor, {
           word,
           translation: '(translation failed)',
           isSaved: stillSaved,

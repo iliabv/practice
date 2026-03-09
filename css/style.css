@@ -549,6 +549,11 @@ main {
   background: rgba(255, 255, 255, 0.15);
 }
 
+.sentence .word-highlighted {
+  background: rgba(233, 69, 96, 0.35);
+  border-radius: 3px;
+}
+
 /* Word popup */
 .word-popup {
   position: absolute;
@@ -567,10 +572,6 @@ main {
 
 .word-popup.hidden {
   display: none;
-}
-
-.word-popup-word {
-  font-weight: 600;
 }
 
 .word-popup-translation {
