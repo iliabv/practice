@@ -56,7 +56,6 @@ export const els = {
   toggleTextBtn: $('#toggle-text-btn'),
   holdMicBtn: $('#hold-mic-btn'),
   fullPlayer: $('#full-player'),
-  wordPopup: $('#word-popup'),
   navText: $('#nav-text'),
   navWords: $('#nav-words'),
   wordsView: $('#words-view'),

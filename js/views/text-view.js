@@ -10,6 +10,7 @@ export function createTextView({ state, els, ui }) {
   let loopGeneration = 0;
   let activeWordIndex = -1;
   let highlightedEls = [];
+  let activeWord = null; // { word, translation, isSaved, sentenceText }
   let resolveRecordTrigger = null;
 
   // Play-all state
@@ -29,10 +30,6 @@ export function createTextView({ state, els, ui }) {
     const player = els.inlinePlayer;
     if (player.parentNode === els.sentencesPanel) {
       els.sentencesPanel.removeChild(player);
-    }
-    const popup = els.wordPopup;
-    if (popup.parentNode === els.sentencesPanel) {
-      els.sentencesPanel.removeChild(popup);
     }
 
     els.sentencesPanel.innerHTML = '';
@@ -57,7 +54,6 @@ export function createTextView({ state, els, ui }) {
     });
 
     els.sentencesPanel.appendChild(player);
-    els.sentencesPanel.appendChild(popup);
   }
 
   function setActiveSentence(index) {
@@ -110,19 +106,100 @@ export function createTextView({ state, els, ui }) {
 
     const player = els.inlinePlayer;
     const iconClasses = 'play-icon' + (isRecording ? ' recording' : '') + (isAwaitingRecord ? ' awaiting-record' : '') + ((isLoading || isPreparing) ? ' loading' : '');
-    player.innerHTML = `
+
+    let html = `
       <span class="${iconClasses}">${iconContent}</span>
       <span class="loop-counter">${loopCount}x</span>
       ${phaseText ? `<span class="phase-label">${phaseText}</span>` : ''}
     `;
+
+    if (activeWord) {
+      const { translation, isSaved } = activeWord;
+      const translationHtml = translation === null
+        ? '<div class="spinner"></div>'
+        : ui.escapeHtml(translation);
+      const saveClass = 'inline-player-action' + (isSaved ? ' saved' : '');
+      const saveIcon = isSaved ? '★' : '☆';
+      const saveTitle = isSaved ? 'Remove word' : 'Save word';
+      html += `
+        <span class="inline-player-divider"></span>
+        <span class="inline-player-translation">${translationHtml}</span>
+        <button class="inline-player-action" title="Play word">▶</button>
+        <button class="${saveClass}" title="${saveTitle}">${saveIcon}</button>
+      `;
+    }
+
+    player.innerHTML = html;
     player.classList.toggle('disabled', !interactive);
     player.classList.toggle('recording', isRecording);
     player.classList.remove('hidden');
     player.onclick = interactive ? onPlay : null;
+
+    if (activeWord) wireWordButtons(player);
     positionInlinePlayer();
   }
 
+  function wireWordButtons(player) {
+    const playBtn = player.querySelector('[title="Play word"]');
+    if (playBtn) {
+      playBtn.onclick = async (e) => {
+        e.stopPropagation();
+        if (!activeWord) return;
+        const s = state.get();
+        if (!s.apiKey) return;
+        playBtn.textContent = '…';
+        playBtn.disabled = true;
+        try {
+          const blob = await textToSpeech(activeWord.word, s.apiKey, {
+            voiceName: s.voiceName,
+            speed: s.speed,
+            languageCode: s.languageCode,
+          });
+          playBtn.textContent = '▶';
+          playBtn.disabled = false;
+          await playBlob(blob);
+        } catch {
+          playBtn.textContent = '▶';
+          playBtn.disabled = false;
+        }
+      };
+    }
+
+    const saveBtn = player.querySelector('[title="Save word"], [title="Remove word"]');
+    if (saveBtn) {
+      saveBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (!activeWord) return;
+        if (activeWord.isSaved) {
+          const saved = state.getSavedWord(activeWord.word, activeWord.sentenceText);
+          if (saved) state.deleteWord(saved.id);
+          clearActiveWord();
+        } else {
+          const s = state.get();
+          state.saveWord({
+            word: activeWord.word,
+            sentence: activeWord.sentenceText,
+            translation: activeWord.translation || '',
+            languageCode: s.languageCode,
+            voiceName: s.voiceName,
+            speed: s.speed,
+          });
+          activeWord.isSaved = true;
+          updatePlayer();
+        }
+      };
+    }
+  }
+
+  function clearActiveWord() {
+    activeWord = null;
+    clearHighlight();
+    updatePlayer();
+  }
+
   function clearPlayer() {
+    activeWord = null;
+    clearHighlight();
     els.inlinePlayer.classList.add('hidden');
     els.inlinePlayer.innerHTML = '';
   }
@@ -340,161 +417,33 @@ export function createTextView({ state, els, ui }) {
     return null;
   }
 
-  function showWordPopup(anchorRect, { word, translation, isSaved, onSave, onDelete }) {
-    const popup = els.wordPopup;
-    const handler = isSaved ? onDelete : onSave;
-    const translationHtml = translation === null
-      ? '<span class="word-popup-translation"><div class="spinner"></div></span>'
-      : `<span class="word-popup-translation">${ui.escapeHtml(translation)}</span>`;
-
-    let saveBtnHtml = '';
-    if (handler) {
-      const btnClass = isSaved ? 'word-popup-action saved' : 'word-popup-action';
-      const btnText = isSaved ? '★' : '☆';
-      const btnTitle = isSaved ? 'Delete word' : 'Save word';
-      saveBtnHtml = `<button class="${btnClass}" title="${btnTitle}">${btnText}</button>`;
-    }
-
-    popup.innerHTML = `
-      ${translationHtml}
-      <button class="word-popup-action" title="Play pronunciation">▶</button>
-      ${saveBtnHtml}
-    `;
-
-    const playBtn = popup.querySelector('[title="Play pronunciation"]');
-    playBtn.onclick = async () => {
-      const s = state.get();
-      if (!s.apiKey) return;
-      playBtn.textContent = '…';
-      playBtn.disabled = true;
-      try {
-        const blob = await textToSpeech(word, s.apiKey, {
-          voiceName: s.voiceName,
-          speed: s.speed,
-          languageCode: s.languageCode,
-        });
-        playBtn.textContent = '▶';
-        playBtn.disabled = false;
-        await playBlob(blob);
-      } catch {
-        playBtn.textContent = '▶';
-        playBtn.disabled = false;
-      }
-    };
-
-    const saveBtn = popup.querySelector('[title="Save word"], [title="Delete word"]');
-    if (saveBtn) {
-      if (isSaved) {
-        ui.confirmDelete(saveBtn, handler);
-      } else {
-        saveBtn.onclick = handler;
-      }
-    }
-
-    popup.style.top = '0px';
-    popup.style.left = '-9999px';
-    popup.classList.remove('hidden');
-
-    const panelRect = els.sentencesPanel.getBoundingClientRect();
-    let left = anchorRect.left - panelRect.left;
-    let top = anchorRect.top - panelRect.top - popup.offsetHeight - 6;
-    if (top < 0) {
-      top = anchorRect.bottom - panelRect.top + 6;
-    }
-    const popupWidth = popup.offsetWidth;
-    if (left + popupWidth > panelRect.width) {
-      left = Math.max(0, panelRect.width - popupWidth);
-    }
-    popup.style.top = `${top}px`;
-    popup.style.left = `${left}px`;
-  }
-
-  function hideWordPopup() {
-    clearHighlight();
-    els.wordPopup.classList.add('hidden');
-    els.wordPopup.innerHTML = '';
-  }
-
-  // --- Translation popup ---
+  // --- Translation popup (integrated into inline player) ---
 
   async function showTranslationPopup(word, anchorRect, sentenceText) {
-    const s = state.get();
-    const isSaved = state.isWordSaved(word, sentenceText);
-
     const sentenceIndex = sentences.indexOf(sentenceText);
-    const highlightRect = highlightInSentence(word, sentenceIndex);
-    const popupAnchor = highlightRect || anchorRect;
 
-    const onSave = async () => {
-      const savedWord = state.saveWord({
-        word,
-        sentence: sentenceText,
-        translation: currentTranslation || '',
-        languageCode: s.languageCode,
-        voiceName: s.voiceName,
-        speed: s.speed,
-      });
-      showWordPopup(popupAnchor, {
-        word,
-        translation: currentTranslation || '',
-        isSaved: true,
-        onSave: null,
-        onDelete: () => {
-          state.deleteWord(savedWord.id);
-          hideWordPopup();
-        },
-      });
-    };
+    // Ensure sentence is active so the player is visible
+    if (state.get().activeSentenceIndex !== sentenceIndex && sentenceIndex >= 0) {
+      onSentenceClick(sentenceIndex);
+    }
 
-    const onDelete = () => {
-      const saved = state.getSavedWord(word, sentenceText);
-      if (saved) state.deleteWord(saved.id);
-      hideWordPopup();
-    };
-
-    let currentTranslation = null;
-
-    showWordPopup(popupAnchor, {
-      word,
-      translation: null,
-      isSaved,
-      onSave: null,
-      onDelete,
-    });
+    highlightInSentence(word, sentenceIndex);
+    activeWord = { word, translation: null, isSaved: state.isWordSaved(word, sentenceText), sentenceText };
+    updatePlayer();
 
     try {
+      const s = state.get();
       const sourceLang = s.languageCode.split('-')[0];
-      currentTranslation = await translateText(word, s.apiKey, sourceLang);
-      if (!els.wordPopup.classList.contains('hidden')) {
-        const stillSaved = state.isWordSaved(word, sentenceText);
-        showWordPopup(popupAnchor, {
-          word,
-          translation: currentTranslation,
-          isSaved: stillSaved,
-          onSave,
-          onDelete: () => {
-            const saved = state.getSavedWord(word, sentenceText);
-            if (saved) state.deleteWord(saved.id);
-            hideWordPopup();
-          },
-        });
-      }
+      const translation = await translateText(word, s.apiKey, sourceLang);
+      if (!activeWord || activeWord.word !== word) return;
+      activeWord.translation = translation;
+      activeWord.isSaved = state.isWordSaved(word, sentenceText);
+      updatePlayer();
     } catch (err) {
       console.error('Translation failed:', err);
-      if (!els.wordPopup.classList.contains('hidden')) {
-        const stillSaved = state.isWordSaved(word, sentenceText);
-        showWordPopup(popupAnchor, {
-          word,
-          translation: '(translation failed)',
-          isSaved: stillSaved,
-          onSave,
-          onDelete: () => {
-            const saved = state.getSavedWord(word, sentenceText);
-            if (saved) state.deleteWord(saved.id);
-            hideWordPopup();
-          },
-        });
-      }
+      if (!activeWord || activeWord.word !== word) return;
+      activeWord.translation = '(translation failed)';
+      updatePlayer();
     }
   }
 
@@ -565,7 +514,8 @@ export function createTextView({ state, els, ui }) {
       disableWordInteraction(activeWordIndex);
       activeWordIndex = -1;
     }
-    hideWordPopup();
+    activeWord = null;
+    clearHighlight();
     state.setActiveSentence(-1);
     setActiveSentence(-1);
     clearPlayer();
@@ -582,7 +532,8 @@ export function createTextView({ state, els, ui }) {
         disableWordInteraction(activeWordIndex);
         activeWordIndex = -1;
       }
-      hideWordPopup();
+      activeWord = null;
+      clearHighlight();
       abortLoop();
       state.setActiveSentence(index);
       setActiveSentence(index);
@@ -932,8 +883,8 @@ export function createTextView({ state, els, ui }) {
   // --- Escape handler ---
 
   function onEscape() {
-    if (!els.wordPopup.classList.contains('hidden')) {
-      hideWordPopup();
+    if (activeWord) {
+      clearActiveWord();
       return;
     }
 
@@ -1016,9 +967,9 @@ export function createTextView({ state, els, ui }) {
     const target = e.target;
     if (target.closest('.sentence')) return;
     if (target.closest('.inline-player')) return;
-    if (target.closest('.word-popup')) return;
-    if (!els.wordPopup.classList.contains('hidden')) {
-      hideWordPopup();
+    if (activeWord) {
+      activeWord = null;
+      clearHighlight();
     }
     if (!els.inlinePlayer.classList.contains('hidden')) {
       abortLoop();

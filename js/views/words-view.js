@@ -120,10 +120,14 @@ export function createWordsView({ state, els, ui }) {
 
       inputWrap.appendChild(revealBtn);
 
+      const actions = document.createElement('div');
+      actions.className = 'word-card-actions';
+      actions.appendChild(checkBtn);
+      actions.appendChild(playBtn);
+      actions.appendChild(deleteBtn);
+
       card.appendChild(sentenceDiv);
-      card.appendChild(checkBtn);
-      card.appendChild(playBtn);
-      card.appendChild(deleteBtn);
+      card.appendChild(actions);
       container.appendChild(card);
     });
   }
