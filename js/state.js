@@ -224,7 +224,28 @@ export function createState() {
     recordPractice(wordId, correct) {
       const word = state.savedWords.find(w => w.id === wordId);
       if (!word) return;
-      word.practices.push({ at: Date.now(), correct });
+      word.practices.push({
+        at: Date.now(),
+        correct,
+        prevEaseFactor: word.easeFactor ?? 2.5,
+        prevInterval: word.interval ?? 1,
+      });
+      const sr = updateSR(word, correct);
+      word.easeFactor = sr.easeFactor;
+      word.interval = sr.interval;
+      word.nextDue = sr.nextDue;
+      this.persist();
+    },
+
+    updateLastPractice(wordId, correct) {
+      const word = state.savedWords.find(w => w.id === wordId);
+      if (!word || !word.practices.length) return;
+      const last = word.practices[word.practices.length - 1];
+      if (last.correct === correct) return;
+      word.easeFactor = last.prevEaseFactor;
+      word.interval = last.prevInterval;
+      last.correct = correct;
+      last.at = Date.now();
       const sr = updateSR(word, correct);
       word.easeFactor = sr.easeFactor;
       word.interval = sr.interval;

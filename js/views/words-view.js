@@ -1,6 +1,22 @@
 import { textToSpeech } from '../tts.js';
 import { playBlob } from '../audio-utils.js';
 
+function formatStats(wordEntry) {
+  const total = wordEntry.practices?.length || 0;
+  if (total === 0) return 'New';
+  const correct = wordEntry.practices.filter(p => p.correct).length;
+  const due = wordEntry.nextDue || 0;
+  const overdue = due <= Date.now();
+  const parts = [`${correct}/${total}`];
+  if (overdue) {
+    parts.push('due now');
+  } else {
+    const days = Math.ceil((due - Date.now()) / (24 * 60 * 60 * 1000));
+    parts.push(`next in ${days}d`);
+  }
+  return parts.join(' · ');
+}
+
 export function createWordsView({ state, els, ui }) {
   let sortMode = 'recent';
 
@@ -26,74 +42,99 @@ export function createWordsView({ state, els, ui }) {
       const sentenceDiv = document.createElement('div');
       sentenceDiv.className = 'word-card-sentence';
 
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'word-card-gap';
-      input.placeholder = '…';
+      const gap = document.createElement('span');
+      gap.className = 'word-card-gap';
+      gap.textContent = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0';
 
-      const settled = () => input.classList.contains('correct') || input.classList.contains('incorrect');
-
-      let checkBtn;
-
-      const doCheck = () => {
-        if (settled()) return;
-        const val = input.value.trim();
-        if (!val) return;
-        const correct = val.toLowerCase() === wordEntry.word.toLowerCase();
-        const cls = correct ? 'correct' : 'incorrect';
-        input.classList.add(cls);
-        if (checkBtn) checkBtn.classList.add(cls);
-        state.recordPractice(wordEntry.id, correct);
-      };
+      const gapWrap = document.createElement('span');
+      gapWrap.className = 'word-card-gap-wrap';
+      gapWrap.appendChild(gap);
 
       const lowerSentence = wordEntry.sentence.toLowerCase();
       const wordLower = wordEntry.word.toLowerCase();
       const idx = lowerSentence.indexOf(wordLower);
 
-      const inputWrap = document.createElement('span');
-      inputWrap.className = 'word-card-gap-wrap';
-      inputWrap.appendChild(input);
-
       if (idx >= 0) {
         const before = wordEntry.sentence.slice(0, idx);
         const after = wordEntry.sentence.slice(idx + wordEntry.word.length);
         if (before) sentenceDiv.appendChild(document.createTextNode(before));
-        sentenceDiv.appendChild(inputWrap);
+        sentenceDiv.appendChild(gapWrap);
         if (after) sentenceDiv.appendChild(document.createTextNode(after));
       } else {
         sentenceDiv.appendChild(document.createTextNode(wordEntry.sentence));
         sentenceDiv.appendChild(document.createTextNode(' '));
-        sentenceDiv.appendChild(inputWrap);
+        sentenceDiv.appendChild(gapWrap);
       }
 
-      checkBtn = document.createElement('button');
-      checkBtn.className = 'word-card-btn check';
-      checkBtn.textContent = '✓';
-      checkBtn.title = 'Check answer';
-      checkBtn.onclick = doCheck;
+      const infoDiv = document.createElement('div');
+      infoDiv.className = 'word-card-info';
 
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); doCheck(); }
-      });
-      input.addEventListener('input', () => {
-        input.classList.remove('incorrect');
-        checkBtn.classList.remove('incorrect');
-      });
+      const statsSpan = document.createElement('span');
+      statsSpan.className = 'word-card-stats';
+      statsSpan.textContent = formatStats(wordEntry);
+
+      const translationSpan = document.createElement('span');
+      translationSpan.className = 'word-card-translation hidden';
+      translationSpan.textContent = wordEntry.translation || '';
+
+      infoDiv.appendChild(statsSpan);
+      infoDiv.appendChild(translationSpan);
+
+      const actions = document.createElement('div');
+      actions.className = 'word-card-actions';
 
       const revealBtn = document.createElement('button');
-      revealBtn.className = 'word-card-hint';
-      revealBtn.textContent = '?';
-      revealBtn.title = wordEntry.translation || 'Reveal answer';
-      revealBtn.onclick = () => {
-        if (settled()) return;
-        input.value = '';
-        input.placeholder = wordEntry.word;
-        input.focus();
+      revealBtn.className = 'word-card-btn reveal';
+      revealBtn.textContent = 'Show';
+      revealBtn.title = 'Reveal answer';
+
+      const thumbUpBtn = document.createElement('button');
+      thumbUpBtn.className = 'word-card-btn thumb-up hidden';
+      thumbUpBtn.textContent = '\u2713';
+      thumbUpBtn.title = 'I knew it';
+
+      const thumbDownBtn = document.createElement('button');
+      thumbDownBtn.className = 'word-card-btn thumb-down hidden';
+      thumbDownBtn.textContent = '\u2717';
+      thumbDownBtn.title = "I didn't know it";
+
+      const reveal = () => {
+        if (gap.classList.contains('revealed')) return;
+        gap.textContent = wordEntry.word;
+        gap.classList.add('revealed');
+        translationSpan.classList.remove('hidden');
+        revealBtn.classList.add('hidden');
+        thumbUpBtn.classList.remove('hidden');
+        thumbDownBtn.classList.remove('hidden');
       };
+
+      revealBtn.onclick = reveal;
+      gap.onclick = reveal;
+
+      let hasRated = false;
+      const rate = (correct) => {
+        gap.classList.remove('correct', 'incorrect');
+        thumbUpBtn.classList.remove('selected');
+        thumbDownBtn.classList.remove('selected');
+        if (hasRated) {
+          state.updateLastPractice(wordEntry.id, correct);
+        } else {
+          state.recordPractice(wordEntry.id, correct);
+          hasRated = true;
+        }
+        gap.classList.add(correct ? 'correct' : 'incorrect');
+        (correct ? thumbUpBtn : thumbDownBtn).classList.add('selected');
+        statsSpan.textContent = formatStats(
+          state.getSavedWords().find(w => w.id === wordEntry.id) || wordEntry
+        );
+      };
+
+      thumbUpBtn.onclick = () => rate(true);
+      thumbDownBtn.onclick = () => rate(false);
 
       const playBtn = document.createElement('button');
       playBtn.className = 'word-card-btn';
-      playBtn.textContent = '▶';
+      playBtn.textContent = '\u25B6';
       playBtn.title = 'Play sentence';
       playBtn.onclick = async () => {
         try {
@@ -111,22 +152,21 @@ export function createWordsView({ state, els, ui }) {
 
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'word-card-btn';
-      deleteBtn.textContent = '×';
+      deleteBtn.textContent = '\u00D7';
       deleteBtn.title = 'Delete word';
       ui.confirmDelete(deleteBtn, () => {
         state.deleteWord(wordEntry.id);
         renderCards();
       });
 
-      inputWrap.appendChild(revealBtn);
-
-      const actions = document.createElement('div');
-      actions.className = 'word-card-actions';
-      actions.appendChild(checkBtn);
+      actions.appendChild(revealBtn);
+      actions.appendChild(thumbUpBtn);
+      actions.appendChild(thumbDownBtn);
       actions.appendChild(playBtn);
       actions.appendChild(deleteBtn);
 
       card.appendChild(sentenceDiv);
+      card.appendChild(infoDiv);
       card.appendChild(actions);
       container.appendChild(card);
     });
