@@ -758,25 +758,12 @@ main {
 }
 
 .word-card-delete {
-  position: absolute;
-  top: 0.3rem;
-  right: 0.3rem;
-  width: 20px;
-  height: 20px;
-  font-size: 0.7rem;
-  opacity: 0;
+  opacity: 0.4;
   transition: opacity 0.15s, color 0.15s, background-color 0.15s;
 }
 
-.word-card:hover .word-card-delete,
-.word-card-delete.confirming {
+.word-card-delete:hover {
   opacity: 1;
-}
-
-@media (hover: none) {
-  .word-card-delete {
-    opacity: 1;
-  }
 }
 
 .word-card-btn.reveal {

@@ -18,17 +18,16 @@ function formatStats(wordEntry) {
 }
 
 export function createWordsView({ state, els, ui }) {
-  let sortMode = 'recent';
-
   function renderCards() {
+    const sortMode = state.get().wordsSortMode;
     const words = state.getSavedWordsSorted(sortMode);
     const container = els.wordCardsContainer;
     container.innerHTML = '';
 
     els.sortRecentBtn.classList.toggle('active', sortMode === 'recent');
-    els.sortSmartBtn.classList.toggle('active', sortMode === 'smart');
-    els.sortRecentBtn.onclick = () => { sortMode = 'recent'; renderCards(); };
-    els.sortSmartBtn.onclick = () => { sortMode = 'smart'; renderCards(); };
+    els.sortDueBtn.classList.toggle('active', sortMode === 'due');
+    els.sortRecentBtn.onclick = () => { state.setWordsSortMode('recent'); renderCards(); };
+    els.sortDueBtn.onclick = () => { state.setWordsSortMode('due'); renderCards(); };
 
     if (words.length === 0) {
       container.innerHTML = '<div class="word-cards-empty">No saved words yet. Click words in practice sentences to save them.</div>';
@@ -163,11 +162,11 @@ export function createWordsView({ state, els, ui }) {
       actions.appendChild(thumbUpBtn);
       actions.appendChild(thumbDownBtn);
       actions.appendChild(playBtn);
+      actions.appendChild(deleteBtn);
 
       card.appendChild(sentenceDiv);
       card.appendChild(infoDiv);
       card.appendChild(actions);
-      card.appendChild(deleteBtn);
       container.appendChild(card);
     });
   }

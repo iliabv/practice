@@ -56,6 +56,7 @@ export function createState() {
     holdMic: stored?.holdMic ?? false,
     savedWords: stored?.savedWords || [],
     lastHash: stored?.lastHash || null,
+    wordsSortMode: stored?.wordsSortMode || 'recent',
     // Runtime-only (not persisted)
     activeSentenceIndex: -1,
     phase: 'idle',
@@ -113,6 +114,11 @@ export function createState() {
 
     setLastHash(hash) {
       state.lastHash = hash;
+      this.persist();
+    },
+
+    setWordsSortMode(mode) {
+      state.wordsSortMode = mode;
       this.persist();
     },
 
@@ -258,7 +264,7 @@ export function createState() {
     },
 
     getSavedWordsSorted(mode) {
-      if (mode === 'smart') return smartSort(state.savedWords);
+      if (mode === 'due') return smartSort(state.savedWords);
       // 'recent' — newest first
       return [...state.savedWords].sort((a, b) => b.createdAt - a.createdAt);
     },
@@ -275,6 +281,7 @@ export function createState() {
         holdMic: state.holdMic,
         savedWords: state.savedWords,
         lastHash: state.lastHash,
+        wordsSortMode: state.wordsSortMode,
       });
     },
 

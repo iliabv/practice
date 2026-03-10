@@ -61,7 +61,7 @@ export const els = {
   wordsView: $('#words-view'),
   wordCardsContainer: $('#word-cards-container'),
   sortRecentBtn: $('#sort-recent-btn'),
-  sortSmartBtn: $('#sort-smart-btn'),
+  sortDueBtn: $('#sort-due-btn'),
 };
 
 /** Show an error banner. Click to dismiss. */
