@@ -85,7 +85,7 @@ export function createWordsView({ state, els, ui }) {
 
       const revealBtn = document.createElement('button');
       revealBtn.className = 'word-card-btn reveal';
-      revealBtn.textContent = 'Show';
+      revealBtn.textContent = '?';
       revealBtn.title = 'Reveal answer';
 
       const thumbUpBtn = document.createElement('button');
@@ -151,7 +151,7 @@ export function createWordsView({ state, els, ui }) {
       };
 
       const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'word-card-btn';
+      deleteBtn.className = 'word-card-btn word-card-delete';
       deleteBtn.textContent = '\u00D7';
       deleteBtn.title = 'Delete word';
       ui.confirmDelete(deleteBtn, () => {
@@ -163,11 +163,11 @@ export function createWordsView({ state, els, ui }) {
       actions.appendChild(thumbUpBtn);
       actions.appendChild(thumbDownBtn);
       actions.appendChild(playBtn);
-      actions.appendChild(deleteBtn);
 
       card.appendChild(sentenceDiv);
       card.appendChild(infoDiv);
       card.appendChild(actions);
+      card.appendChild(deleteBtn);
       container.appendChild(card);
     });
   }

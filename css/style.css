@@ -651,6 +651,7 @@ main {
 
 /* Word cards */
 .word-card {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr auto;
   grid-template-rows: auto auto;
@@ -756,11 +757,30 @@ main {
   background: rgba(233, 69, 96, 0.1);
 }
 
+.word-card-delete {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  width: 20px;
+  height: 20px;
+  font-size: 0.7rem;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background-color 0.15s;
+}
+
+.word-card:hover .word-card-delete,
+.word-card-delete.confirming {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .word-card-delete {
+    opacity: 1;
+  }
+}
+
 .word-card-btn.reveal {
-  width: auto;
-  padding: 0 0.5rem;
-  font-size: 0.75rem;
-  color: var(--text);
+  font-size: 0.85rem;
 }
 
 .word-card-btn.thumb-up:hover,
