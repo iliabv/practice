@@ -56,7 +56,7 @@ export function createState() {
     holdMic: stored?.holdMic ?? false,
     savedWords: stored?.savedWords || [],
     lastHash: stored?.lastHash || null,
-    wordsSortMode: stored?.wordsSortMode || 'recent',
+    wordsSortMode: stored?.wordsSortMode || 'due',
     // Runtime-only (not persisted)
     activeSentenceIndex: -1,
     phase: 'idle',

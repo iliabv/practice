@@ -18,11 +18,27 @@ function formatStats(wordEntry) {
 }
 
 export function createWordsView({ state, els, ui }) {
+  let cardActions = [];
+  let focusedIndex = 0;
+  let answeredCount = 0;
+
+  function updateFocus() {
+    cardActions.forEach((c, i) => {
+      c.element.classList.toggle('focused', i === focusedIndex);
+    });
+    if (cardActions[focusedIndex]) {
+      cardActions[focusedIndex].element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+
   function renderCards() {
     const sortMode = state.get().wordsSortMode;
     const words = state.getSavedWordsSorted(sortMode);
     const container = els.wordCardsContainer;
     container.innerHTML = '';
+    cardActions = [];
+    focusedIndex = 0;
+    answeredCount = 0;
 
     els.sortRecentBtn.classList.toggle('active', sortMode === 'recent');
     els.sortDueBtn.classList.toggle('active', sortMode === 'due');
@@ -35,8 +51,12 @@ export function createWordsView({ state, els, ui }) {
     }
 
     words.forEach(wordEntry => {
+      const isDue = !wordEntry.nextDue || wordEntry.nextDue <= Date.now();
       const card = document.createElement('div');
       card.className = 'word-card';
+      if (sortMode === 'due') {
+        card.classList.add(isDue ? 'due-now' : 'not-due');
+      }
 
       const sentenceDiv = document.createElement('div');
       sentenceDiv.className = 'word-card-sentence';
@@ -105,6 +125,7 @@ export function createWordsView({ state, els, ui }) {
         revealBtn.classList.add('hidden');
         thumbUpBtn.classList.remove('hidden');
         thumbDownBtn.classList.remove('hidden');
+        playAudio();
       };
 
       revealBtn.onclick = reveal;
@@ -120,6 +141,8 @@ export function createWordsView({ state, els, ui }) {
         } else {
           state.recordPractice(wordEntry.id, correct);
           hasRated = true;
+          answeredCount++;
+          updateRefreshMessage();
         }
         gap.classList.add(correct ? 'correct' : 'incorrect');
         (correct ? thumbUpBtn : thumbDownBtn).classList.add('selected');
@@ -132,10 +155,16 @@ export function createWordsView({ state, els, ui }) {
       thumbDownBtn.onclick = () => rate(false);
 
       const playBtn = document.createElement('button');
-      playBtn.className = 'word-card-btn';
+      playBtn.className = 'word-card-btn play';
       playBtn.textContent = '\u25B6';
       playBtn.title = 'Play sentence';
-      playBtn.onclick = async () => {
+
+      let isPlaying = false;
+      const playAudio = async () => {
+        if (isPlaying) return;
+        isPlaying = true;
+        playBtn.classList.add('loading');
+        playBtn.innerHTML = '<span class="spinner"></span>';
         try {
           const blob = await textToSpeech(wordEntry.sentence, state.get().apiKey, {
             voiceName: wordEntry.voiceName,
@@ -146,8 +175,13 @@ export function createWordsView({ state, els, ui }) {
         } catch (err) {
           console.error('TTS playback failed:', err);
           ui.showBanner(err.message || 'Playback failed');
+        } finally {
+          playBtn.textContent = '\u25B6';
+          playBtn.classList.remove('loading');
+          isPlaying = false;
         }
       };
+      playBtn.onclick = playAudio;
 
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'word-card-btn word-card-delete';
@@ -168,7 +202,83 @@ export function createWordsView({ state, els, ui }) {
       card.appendChild(infoDiv);
       card.appendChild(actions);
       container.appendChild(card);
+
+      cardActions.push({
+        element: card,
+        reveal,
+        rate,
+        playAudio,
+        isRevealed: () => gap.classList.contains('revealed'),
+        isRated: () => hasRated,
+      });
     });
+
+    // Refresh message (shown when sort is "due" and user has answered)
+    const refreshMsg = document.createElement('div');
+    refreshMsg.className = 'words-refresh-message hidden';
+    refreshMsg.textContent = 'Refresh the page to see updated order';
+    container.appendChild(refreshMsg);
+    refreshMsgEl = refreshMsg;
+
+    updateFocus();
+  }
+
+  let refreshMsgEl = null;
+
+  function updateRefreshMessage() {
+    if (!refreshMsgEl) return;
+    const sortMode = state.get().wordsSortMode;
+    if (sortMode === 'due' && answeredCount > 0) {
+      refreshMsgEl.classList.remove('hidden');
+    }
+  }
+
+  function handleKeydown(e) {
+    if (!cardActions.length) return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+
+    const card = cardActions[focusedIndex];
+    if (!card) return;
+
+    switch (e.key) {
+      case ' ':
+      case 'Enter':
+        e.preventDefault();
+        if (!card.isRevealed()) {
+          card.reveal();
+        } else if (card.isRated() && focusedIndex < cardActions.length - 1) {
+          focusedIndex++;
+          updateFocus();
+        }
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        if (card.isRevealed()) card.rate(true);
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        if (card.isRevealed()) card.rate(false);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        if (focusedIndex < cardActions.length - 1) {
+          focusedIndex++;
+          updateFocus();
+        }
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        if (focusedIndex > 0) {
+          focusedIndex--;
+          updateFocus();
+        }
+        break;
+      case 'p':
+      case 'P':
+        e.preventDefault();
+        card.playAudio();
+        break;
+    }
   }
 
   return {
@@ -176,9 +286,11 @@ export function createWordsView({ state, els, ui }) {
       els.wordsView.classList.remove('hidden');
       ui.setActiveNav('words');
       renderCards();
+      document.addEventListener('keydown', handleKeydown);
     },
     leave() {
       els.wordsView.classList.add('hidden');
+      document.removeEventListener('keydown', handleKeydown);
     },
   };
 }
