@@ -56,6 +56,7 @@ export function createState() {
     holdMic: stored?.holdMic ?? false,
     savedWords: stored?.savedWords || [],
     lastHash: stored?.lastHash || null,
+    lastTextHash: stored?.lastTextHash || null,
     wordsSortMode: stored?.wordsSortMode || 'due',
     // Runtime-only (not persisted)
     activeSentenceIndex: -1,
@@ -114,6 +115,11 @@ export function createState() {
 
     setLastHash(hash) {
       state.lastHash = hash;
+      this.persist();
+    },
+
+    setLastTextHash(hash) {
+      state.lastTextHash = hash;
       this.persist();
     },
 
@@ -281,6 +287,7 @@ export function createState() {
         holdMic: state.holdMic,
         savedWords: state.savedWords,
         lastHash: state.lastHash,
+        lastTextHash: state.lastTextHash,
         wordsSortMode: state.wordsSortMode,
       });
     },

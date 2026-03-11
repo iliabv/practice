@@ -77,6 +77,11 @@ const mainView = createMainView({ state, els, ui, textHash, onStartText });
 const views = { input: mainView, text: textView, words: wordsView };
 let activeView = null;
 
+function updateTextNavLink() {
+  const last = state.get().lastTextHash;
+  els.navText.href = last || '#/';
+}
+
 function navigate(route) {
   if (activeView) {
     activeView.leave();
@@ -87,6 +92,8 @@ function navigate(route) {
     view.enter(route);
     activeView = view;
     state.setLastHash(route.view !== 'input' ? location.hash : null);
+    if (route.view === 'input') state.setLastTextHash(null);
+    else if (route.view === 'text') state.setLastTextHash(location.hash);
   } catch (e) {
     console.error('Navigation failed:', e);
     history.replaceState(null, '', '#/');
@@ -94,6 +101,7 @@ function navigate(route) {
     activeView = views.input;
     state.setLastHash(null);
   }
+  updateTextNavLink();
 }
 
 // --- Settings listeners ---
