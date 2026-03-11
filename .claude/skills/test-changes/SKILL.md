@@ -32,11 +32,18 @@ allowed-tools: Bash(playwright-cli:*), Bash(python3:*)
 All app state lives in localStorage key `dutch-practice`. Seed it to skip needing a real API key:
 
 ```bash
-playwright-cli localstorage-set dutch-practice '{"apiKey":"","languageCode":"nl-NL","voiceName":"","speed":1,"texts":[{"id":"id1","text":"Zin één. Zin twee. Zin drie.","sentenceProgress":[{"loopCount":0},{"loopCount":0},{"loopCount":0}],"createdAt":1700000000000}],"savedWords":[]}'
+playwright-cli localstorage-set dutch-practice '{"apiKey":"","languageCode":"nl-NL","voiceName":"Zephyr","modelName":"gemini-2.5-flash-tts","speed":1,"texts":[{"id":"id1","text":"Zin één. Zin twee. Zin drie.","sentenceProgress":[{"loopCount":0},{"loopCount":0},{"loopCount":0}],"createdAt":1700000000000}],"savedWords":[]}'
 playwright-cli reload
 ```
 
-After seeding, always `reload` so the app picks up the new state.
+### Critical: Seeding + Navigation
+
+The app loads state into memory on page init and writes it back via `persist()`. This creates pitfalls:
+
+1. **Always seed BEFORE reload, never before `goto`** — `goto` triggers a full page load. If you `localstorage-set` then `goto`, the `goto` page load reads OLD state (from before your set), then `persist()` overwrites your seeded data.
+2. **After seeding, use `reload` (not `goto` or hash change)** — `reload` re-runs init on the same URL with the freshly seeded localStorage. Hash changes only trigger view transitions with the OLD in-memory state.
+3. **To navigate to a specific view on reload**, include `lastHash` in the seeded data (e.g. `"lastHash":"#/words"`). The app resumes the last active view on load.
+4. **Route mocks (`playwright-cli route`) are lost on `reload` and `goto`** — always re-add them after any page navigation.
 
 ## Element Refs
 
@@ -65,10 +72,10 @@ playwright-cli snapshot            # verify item removed
 
 ### Words View (`#/words`)
 
-Seed with saved words:
+Seed with saved words (include `lastHash` to land on words view after reload):
 ```bash
-playwright-cli localstorage-set dutch-practice '{"apiKey":"","languageCode":"nl-NL","voiceName":"","speed":1,"texts":[],"savedWords":[{"id":"w1","word":"test","wordLower":"test","sentence":"Dit is een test zin.","translation":"This is a test sentence.","languageCode":"nl-NL","voiceName":"","speed":1,"createdAt":1700000000000,"practices":[],"easeFactor":2.5,"interval":1,"nextDue":0}]}'
-playwright-cli goto http://localhost:8008/#/words
+playwright-cli localstorage-set dutch-practice '{"apiKey":"","languageCode":"nl-NL","voiceName":"Zephyr","modelName":"gemini-2.5-flash-tts","speed":1,"texts":[],"savedWords":[{"id":"w1","word":"test","wordLower":"test","sentence":"Dit is een test zin.","translation":"This is a test sentence.","languageCode":"nl-NL","voiceName":"Zephyr","modelName":"gemini-2.5-flash-tts","speed":1,"createdAt":1700000000000,"practices":[],"easeFactor":2.5,"interval":1,"nextDue":0}],"wordsSortMode":"recent","lastHash":"#/words"}'
+playwright-cli reload
 playwright-cli snapshot              # verify word card rendered
 playwright-cli click <reveal-btn>    # the ? button
 playwright-cli snapshot              # verify answer visible, thumb buttons
@@ -80,13 +87,14 @@ playwright-cli snapshot              # verify sort mode changed
 
 ### Text View (`#/text?id=...`)
 
-Mock TTS API + seed state:
+Seed state with `lastHash` pointing to text view, then reload. Add route mock AFTER reload:
 ```bash
+playwright-cli localstorage-set dutch-practice '{"apiKey":"fake","languageCode":"nl-NL","voiceName":"Zephyr","modelName":"gemini-2.5-flash-tts","speed":1,"texts":[{"id":"id1","text":"Zin één. Zin twee.","sentenceProgress":[{"loopCount":0},{"loopCount":0}],"createdAt":1700000000000}],"savedWords":[],"lastHash":"#/text?id=id1"}'
+playwright-cli reload
 playwright-cli route "https://texttospeech.googleapis.com/**" --body='{"audioContent":"UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGFO"}'
-playwright-cli localstorage-set dutch-practice '{"apiKey":"fake","languageCode":"nl-NL","voiceName":"nl-NL-Standard-A","speed":1,"texts":[{"id":"id1","text":"Zin één. Zin twee.","sentenceProgress":[{"loopCount":0},{"loopCount":0}],"createdAt":1700000000000}],"savedWords":[]}'
-playwright-cli goto "http://localhost:8008/#/text?id=id1"
 playwright-cli snapshot              # verify sentences rendered
-playwright-cli click <sentence-ref>  # click a sentence
+# Click a sentence via eval (snapshot may collapse sentence spans into one text node)
+playwright-cli eval "document.querySelector('.sentence[data-index=\"0\"]').click()"
 playwright-cli snapshot              # verify inline-player visible
 playwright-cli press Escape
 playwright-cli snapshot              # verify inline-player closed
