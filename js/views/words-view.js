@@ -193,8 +193,8 @@ export function createWordsView({ state, els, ui }) {
       });
 
       actions.appendChild(revealBtn);
-      actions.appendChild(thumbUpBtn);
       actions.appendChild(thumbDownBtn);
+      actions.appendChild(thumbUpBtn);
       actions.appendChild(playBtn);
       actions.appendChild(deleteBtn);
 
