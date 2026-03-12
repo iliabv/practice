@@ -12,38 +12,53 @@ allowed-tools: Bash(playwright-cli:*), Bash(python3:*)
    ```bash
    python3 -m http.server 8008  # run_in_background=true
    ```
-2. Open browser:
+2. Generate a state-seeded URL (see presets below):
    ```bash
-   playwright-cli open http://localhost:8008
+   python3 .claude/skills/test-changes/seed-state.py '<json>'
+   # prints: http://localhost:8008?state=<base64>
    ```
-3. Run the test recipe for affected view(s) — see below
-4. Check for errors:
+3. Open browser with the printed URL (append hash for routing):
    ```bash
-   playwright-cli console
+   playwright-cli open "<url>#/text?id=id1"
    ```
-   Verify no error-level messages in output.
-5. Close:
+4. Add route mocks (after `open` or `goto`):
+   ```bash
+   playwright-cli route "https://texttospeech.googleapis.com/**" --body='{"audioContent":"UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGFO"}'
+   ```
+5. Verify:
+   ```bash
+   playwright-cli snapshot
+   playwright-cli console   # no error-level messages
+   ```
+6. Close:
    ```bash
    playwright-cli close
    ```
 
 ## State Seeding
 
-All app state lives in localStorage key `dutch-practice`. Seed it to skip needing a real API key:
+State is baked into the URL as `?state=<base64json>`. The app merges it into localStorage on load and strips the param from the URL. Hash fragment is preserved for routing.
 
+Use `seed-state.py` to generate URLs — run it, read the output, then pass the URL (with hash appended) to `playwright-cli open` or `goto`.
+
+**Route mocks are lost on `goto` / `reload`** — always re-add them after page navigation.
+
+### State Presets
+
+**Text view** (2 sentences) — append `#/text?id=id1`:
 ```bash
-playwright-cli localstorage-set dutch-practice '{"apiKey":"","languageCode":"nl-NL","voiceName":"Zephyr","modelName":"gemini-2.5-flash-tts","speed":1,"texts":[{"id":"id1","text":"Zin één. Zin twee. Zin drie.","sentenceProgress":[{"loopCount":0},{"loopCount":0},{"loopCount":0}],"createdAt":1700000000000}],"savedWords":[]}'
-playwright-cli reload
+python3 .claude/skills/test-changes/seed-state.py '{"apiKey":"fake","languageCode":"nl-NL","voiceName":"Zephyr","speed":1,"texts":[{"id":"id1","text":"Zin één. Zin twee.","sentenceProgress":[{"loopCount":0},{"loopCount":0}],"createdAt":1700000000000}],"savedWords":[]}'
 ```
 
-### Critical: Seeding + Navigation
+**Words view** (1 saved word) — append `#/words`:
+```bash
+python3 .claude/skills/test-changes/seed-state.py '{"apiKey":"","languageCode":"nl-NL","voiceName":"Zephyr","speed":1,"texts":[],"savedWords":[{"id":"w1","word":"test","wordLower":"test","sentence":"Dit is een test zin.","translation":"This is a test sentence.","languageCode":"nl-NL","voiceName":"Zephyr","speed":1,"createdAt":1700000000000,"practices":[],"easeFactor":2.5,"interval":1,"nextDue":0}],"wordsSortMode":"recent"}'
+```
 
-The app loads state into memory on page init and writes it back via `persist()`. This creates pitfalls:
-
-1. **Always seed BEFORE reload, never before `goto`** — `goto` triggers a full page load. If you `localstorage-set` then `goto`, the `goto` page load reads OLD state (from before your set), then `persist()` overwrites your seeded data.
-2. **After seeding, use `reload` (not `goto` or hash change)** — `reload` re-runs init on the same URL with the freshly seeded localStorage. Hash changes only trigger view transitions with the OLD in-memory state.
-3. **To navigate to a specific view on reload**, include `lastHash` in the seeded data (e.g. `"lastHash":"#/words"`). The app resumes the last active view on load.
-4. **Route mocks (`playwright-cli route`) are lost on `reload` and `goto`** — always re-add them after any page navigation.
+**Input view** (1 history entry) — append `#/`:
+```bash
+python3 .claude/skills/test-changes/seed-state.py '{"apiKey":"","languageCode":"nl-NL","voiceName":"Zephyr","speed":1,"texts":[{"id":"id1","text":"Zin één. Zin twee. Zin drie.","sentenceProgress":[{"loopCount":0},{"loopCount":0},{"loopCount":0}],"createdAt":1700000000000}],"savedWords":[]}'
+```
 
 ## Element Refs
 
@@ -62,8 +77,9 @@ playwright-cli click <start-btn-ref>
 playwright-cli snapshot   # should show API key banner
 ```
 
-**History CRUD (seed state first):**
+**History CRUD:** generate input-view URL, append `#/`, then:
 ```bash
+playwright-cli goto "<url>#/"
 playwright-cli snapshot            # verify history items rendered
 playwright-cli click <delete-btn-ref>
 playwright-cli dialog-accept
@@ -72,10 +88,9 @@ playwright-cli snapshot            # verify item removed
 
 ### Words View (`#/words`)
 
-Seed with saved words (include `lastHash` to land on words view after reload):
+Generate words-view URL, append `#/words`, then:
 ```bash
-playwright-cli localstorage-set dutch-practice '{"apiKey":"","languageCode":"nl-NL","voiceName":"Zephyr","modelName":"gemini-2.5-flash-tts","speed":1,"texts":[],"savedWords":[{"id":"w1","word":"test","wordLower":"test","sentence":"Dit is een test zin.","translation":"This is a test sentence.","languageCode":"nl-NL","voiceName":"Zephyr","modelName":"gemini-2.5-flash-tts","speed":1,"createdAt":1700000000000,"practices":[],"easeFactor":2.5,"interval":1,"nextDue":0}],"wordsSortMode":"recent","lastHash":"#/words"}'
-playwright-cli reload
+playwright-cli goto "<url>#/words"
 playwright-cli snapshot              # verify word card rendered
 playwright-cli click <reveal-btn>    # the ? button
 playwright-cli snapshot              # verify answer visible, thumb buttons
@@ -87,10 +102,9 @@ playwright-cli snapshot              # verify sort mode changed
 
 ### Text View (`#/text?id=...`)
 
-Seed state with `lastHash` pointing to text view, then reload. Add route mock AFTER reload:
+Generate text-view URL, append `#/text?id=id1`, then:
 ```bash
-playwright-cli localstorage-set dutch-practice '{"apiKey":"fake","languageCode":"nl-NL","voiceName":"Zephyr","modelName":"gemini-2.5-flash-tts","speed":1,"texts":[{"id":"id1","text":"Zin één. Zin twee.","sentenceProgress":[{"loopCount":0},{"loopCount":0}],"createdAt":1700000000000}],"savedWords":[],"lastHash":"#/text?id=id1"}'
-playwright-cli reload
+playwright-cli goto "<url>#/text?id=id1"
 playwright-cli route "https://texttospeech.googleapis.com/**" --body='{"audioContent":"UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGFO"}'
 playwright-cli snapshot              # verify sentences rendered
 # Click a sentence via eval (snapshot may collapse sentence spans into one text node)

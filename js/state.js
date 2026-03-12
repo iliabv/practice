@@ -7,6 +7,24 @@ function generateId() {
 }
 
 function load() {
+  // Dev/test: seed state from URL ?state=<base64json>
+  try {
+    const url = new URL(location.href);
+    const param = url.searchParams.get('state');
+    if (param) {
+      const seeded = JSON.parse(atob(param));
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const existing = raw ? JSON.parse(raw) : {};
+      const merged = { ...existing, ...seeded };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      url.searchParams.delete('state');
+      history.replaceState(null, '', url.pathname + url.search + url.hash);
+      return merged;
+    }
+  } catch (e) {
+    console.warn('URL state seeding failed:', e);
+  }
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
