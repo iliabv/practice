@@ -6,8 +6,8 @@ export function updateSR(word, correct) {
   let { easeFactor = 2.5, interval = 1 } = word;
 
   if (correct) {
-    interval = interval <= 1 ? 1 : Math.round(interval * easeFactor);
-    easeFactor = Math.min(2.5, Math.max(1.3, easeFactor + 0.05));
+    interval = interval < 1 ? 1 : Math.round(interval * easeFactor);
+    easeFactor = Math.min(3.5, Math.max(1.3, easeFactor + 0.1));
   } else {
     interval = 0;
     easeFactor = Math.max(1.3, easeFactor - 0.3);
