@@ -77,9 +77,8 @@ const mainView = createMainView({ state, els, ui, textHash, onStartText });
 const views = { input: mainView, text: textView, words: wordsView };
 let activeView = null;
 
-function updateTextNavLink() {
-  const last = state.get().lastTextHash;
-  els.navText.href = last || '#/';
+function updateTextNavLink(currentView) {
+  els.navText.href = currentView === 'text' ? '#/' : (state.get().lastTextHash || '#/');
 }
 
 function navigate(route) {
@@ -101,7 +100,7 @@ function navigate(route) {
     activeView = views.input;
     state.setLastHash(null);
   }
-  updateTextNavLink();
+  updateTextNavLink(route.view);
 }
 
 // --- Settings listeners ---
