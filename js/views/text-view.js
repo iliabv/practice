@@ -182,9 +182,6 @@ export function createTextView({ state, els, ui }) {
             sentence: activeWord.sentenceText,
             translation: activeWord.translation || '',
             languageCode: s.languageCode,
-            voiceName: s.voiceName,
-            speed: s.speed,
-            model: s.ttsModel,
           });
           activeWord.isSaved = true;
           updatePlayer();

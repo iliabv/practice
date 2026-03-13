@@ -1,19 +1,5 @@
-import { textToSpeech, VOICES } from '../tts.js';
+import { textToSpeech } from '../tts.js';
 import { playBlob } from '../audio-utils.js';
-
-// TODO: remove after migration — resolve old Google Cloud TTS voice/speed formats
-function resolveVoice(savedVoiceName, currentVoice) {
-  if (VOICES.includes(savedVoiceName)) return savedVoiceName;
-  // Old Chirp3-HD format: "nl-NL-Chirp3-HD-Aoede" → "Aoede"
-  const suffix = savedVoiceName?.replace(/.*[-]/, '');
-  if (suffix && VOICES.includes(suffix)) return suffix;
-  return currentVoice;
-}
-
-function resolveSpeed(savedSpeed) {
-  if (typeof savedSpeed === 'string' && ['slow', 'normal', 'fast', 'street', 'drunk'].includes(savedSpeed)) return savedSpeed;
-  return 'normal';
-}
 
 function formatStats(wordEntry) {
   const total = wordEntry.practices?.length || 0;
@@ -182,10 +168,10 @@ export function createWordsView({ state, els, ui }) {
         try {
           const s = state.get();
           const blob = await textToSpeech(wordEntry.sentence, s.apiKey, {
-            voiceName: resolveVoice(wordEntry.voiceName, s.voiceName),
-            speed: resolveSpeed(wordEntry.speed),
+            voiceName: s.voiceName,
+            speed: s.speed,
             languageCode: wordEntry.languageCode,
-            model: wordEntry.model || s.ttsModel,
+            model: s.ttsModel,
           });
           await playBlob(blob);
         } catch (err) {

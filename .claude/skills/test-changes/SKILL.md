@@ -52,7 +52,7 @@ python3 .claude/skills/test-changes/seed-state.py '{"apiKey":"fake","languageCod
 
 **Words view** (1 saved word) — append `#/words`:
 ```bash
-python3 .claude/skills/test-changes/seed-state.py '{"apiKey":"","languageCode":"nl-NL","voiceName":"Zephyr","ttsModel":"gemini-2.5-flash-preview-tts","speed":"normal","texts":[],"savedWords":[{"id":"w1","word":"test","wordLower":"test","sentence":"Dit is een test zin.","translation":"This is a test sentence.","languageCode":"nl-NL","voiceName":"Zephyr","speed":"normal","model":"gemini-2.5-flash-preview-tts","createdAt":1700000000000,"practices":[],"easeFactor":2.5,"interval":1,"nextDue":0}],"wordsSortMode":"recent"}'
+python3 .claude/skills/test-changes/seed-state.py '{"apiKey":"","languageCode":"nl-NL","voiceName":"Zephyr","ttsModel":"gemini-2.5-flash-preview-tts","speed":"normal","texts":[],"savedWords":[{"id":"w1","word":"test","wordLower":"test","sentence":"Dit is een test zin.","translation":"This is a test sentence.","languageCode":"nl-NL","createdAt":1700000000000,"practices":[],"easeFactor":2.5,"interval":1,"nextDue":0}],"wordsSortMode":"recent"}'
 ```
 
 **Input view** (1 history entry) — append `#/`:

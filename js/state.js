@@ -221,7 +221,7 @@ export function createState() {
 
     // --- Saved words ---
 
-    saveWord({ word, sentence, translation, languageCode, voiceName, speed, model }) {
+    saveWord({ word, sentence, translation, languageCode }) {
       const entry = {
         id: generateId(),
         word,
@@ -229,9 +229,6 @@ export function createState() {
         sentence,
         translation,
         languageCode,
-        voiceName,
-        speed,
-        model,
         createdAt: Date.now(),
         practices: [],
         easeFactor: 2.5,
