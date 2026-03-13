@@ -30,7 +30,7 @@ function load() {
     if (!raw) return null;
     const data = JSON.parse(raw);
 
-    // Migrate old format: { apiKey, text, sentenceProgress } → new format
+    // TODO: remove after migration — old format: { apiKey, text, sentenceProgress } → new format
     if (data.text !== undefined && data.texts === undefined) {
       const migrated = {
         apiKey: data.apiKey || '',
@@ -67,8 +67,9 @@ export function createState() {
     apiKey: stored?.apiKey || '',
     activeTextId: stored?.activeTextId || null,
     texts: stored?.texts || [],
-    voiceName: stored?.voiceName || '',
-    speed: stored?.speed ?? 1.0,
+    voiceName: stored?.voiceName || 'Kore',
+    ttsModel: stored?.ttsModel || 'gemini-2.5-flash-preview-tts',
+    speed: typeof stored?.speed === 'string' ? stored.speed : 'normal',
     languageCode: stored?.languageCode?.includes('-') ? stored.languageCode : 'nl-NL',
     textHidden: stored?.textHidden ?? false,
     holdMic: stored?.holdMic ?? false,
@@ -108,6 +109,11 @@ export function createState() {
 
     setVoiceName(name) {
       state.voiceName = name;
+      this.persist();
+    },
+
+    setModel(model) {
+      state.ttsModel = model;
       this.persist();
     },
 
@@ -215,7 +221,7 @@ export function createState() {
 
     // --- Saved words ---
 
-    saveWord({ word, sentence, translation, languageCode, voiceName, speed }) {
+    saveWord({ word, sentence, translation, languageCode, voiceName, speed, model }) {
       const entry = {
         id: generateId(),
         word,
@@ -225,6 +231,7 @@ export function createState() {
         languageCode,
         voiceName,
         speed,
+        model,
         createdAt: Date.now(),
         practices: [],
         easeFactor: 2.5,
@@ -299,6 +306,7 @@ export function createState() {
         activeTextId: state.activeTextId,
         texts: state.texts,
         voiceName: state.voiceName,
+        ttsModel: state.ttsModel,
         speed: state.speed,
         languageCode: state.languageCode,
         textHidden: state.textHidden,

@@ -1,6 +1,6 @@
 ---
 name: test-changes
-description: Use after making code changes to test in a real browser. Provides scoped test recipes per view, state seeding patterns, and API mocking to verify changes without a real Google Cloud API key.
+description: Use after making code changes to test in a real browser. Provides scoped test recipes per view, state seeding patterns, and API mocking to verify changes without a real Gemini API key.
 allowed-tools: Bash(playwright-cli:*), Bash(python3:*)
 ---
 
@@ -23,7 +23,7 @@ allowed-tools: Bash(playwright-cli:*), Bash(python3:*)
    ```
 4. Add route mocks (after `open` or `goto`):
    ```bash
-   playwright-cli route "https://texttospeech.googleapis.com/**" --body='{"audioContent":"UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGFO"}'
+   playwright-cli route "https://generativelanguage.googleapis.com/**" --body='{"candidates":[{"content":{"parts":[{"inlineData":{"mimeType":"audio/L16;rate=24000","data":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}}]}}]}'
    ```
 5. Verify:
    ```bash
@@ -47,17 +47,17 @@ Use `seed-state.py` to generate URLs — run it, read the output, then pass the 
 
 **Text view** (2 sentences) — append `#/text?id=id1`:
 ```bash
-python3 .claude/skills/test-changes/seed-state.py '{"apiKey":"fake","languageCode":"nl-NL","voiceName":"Zephyr","speed":1,"texts":[{"id":"id1","text":"Zin één. Zin twee.","sentenceProgress":[{"loopCount":0},{"loopCount":0}],"createdAt":1700000000000}],"savedWords":[]}'
+python3 .claude/skills/test-changes/seed-state.py '{"apiKey":"fake","languageCode":"nl-NL","voiceName":"Zephyr","ttsModel":"gemini-2.5-flash-preview-tts","speed":"normal","texts":[{"id":"id1","text":"Zin één. Zin twee.","sentenceProgress":[{"loopCount":0},{"loopCount":0}],"createdAt":1700000000000}],"savedWords":[]}'
 ```
 
 **Words view** (1 saved word) — append `#/words`:
 ```bash
-python3 .claude/skills/test-changes/seed-state.py '{"apiKey":"","languageCode":"nl-NL","voiceName":"Zephyr","speed":1,"texts":[],"savedWords":[{"id":"w1","word":"test","wordLower":"test","sentence":"Dit is een test zin.","translation":"This is a test sentence.","languageCode":"nl-NL","voiceName":"Zephyr","speed":1,"createdAt":1700000000000,"practices":[],"easeFactor":2.5,"interval":1,"nextDue":0}],"wordsSortMode":"recent"}'
+python3 .claude/skills/test-changes/seed-state.py '{"apiKey":"","languageCode":"nl-NL","voiceName":"Zephyr","ttsModel":"gemini-2.5-flash-preview-tts","speed":"normal","texts":[],"savedWords":[{"id":"w1","word":"test","wordLower":"test","sentence":"Dit is een test zin.","translation":"This is a test sentence.","languageCode":"nl-NL","voiceName":"Zephyr","speed":"normal","model":"gemini-2.5-flash-preview-tts","createdAt":1700000000000,"practices":[],"easeFactor":2.5,"interval":1,"nextDue":0}],"wordsSortMode":"recent"}'
 ```
 
 **Input view** (1 history entry) — append `#/`:
 ```bash
-python3 .claude/skills/test-changes/seed-state.py '{"apiKey":"","languageCode":"nl-NL","voiceName":"Zephyr","speed":1,"texts":[{"id":"id1","text":"Zin één. Zin twee. Zin drie.","sentenceProgress":[{"loopCount":0},{"loopCount":0},{"loopCount":0}],"createdAt":1700000000000}],"savedWords":[]}'
+python3 .claude/skills/test-changes/seed-state.py '{"apiKey":"","languageCode":"nl-NL","voiceName":"Zephyr","ttsModel":"gemini-2.5-flash-preview-tts","speed":"normal","texts":[{"id":"id1","text":"Zin één. Zin twee. Zin drie.","sentenceProgress":[{"loopCount":0},{"loopCount":0},{"loopCount":0}],"createdAt":1700000000000}],"savedWords":[]}'
 ```
 
 ## Element Refs
@@ -105,7 +105,7 @@ playwright-cli snapshot              # verify sort mode changed
 Generate text-view URL, append `#/text?id=id1`, then:
 ```bash
 playwright-cli goto "<url>#/text?id=id1"
-playwright-cli route "https://texttospeech.googleapis.com/**" --body='{"audioContent":"UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGFO"}'
+playwright-cli route "https://generativelanguage.googleapis.com/**" --body='{"candidates":[{"content":{"parts":[{"inlineData":{"mimeType":"audio/L16;rate=24000","data":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}}]}}]}'
 playwright-cli snapshot              # verify sentences rendered
 # Click a sentence via eval (snapshot may collapse sentence spans into one text node)
 playwright-cli eval "document.querySelector('.sentence[data-index=\"0\"]').click()"

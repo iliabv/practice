@@ -1,6 +1,6 @@
 import { parseSentences } from './sentence-parser.js';
 import { createState } from './state.js';
-import { fetchVoices, LANGUAGES } from './tts.js';
+import { VOICES, MODELS, SPEEDS, LANGUAGES } from './tts.js';
 import { els, showBanner, hideBanner, confirmDelete, loopColor, setActiveNav, escapeHtml, formatTime } from './ui.js';
 import { createMainView } from './views/main-view.js';
 import { createTextView } from './views/text-view.js';
@@ -40,24 +40,6 @@ function populateSelect(selectEl, items, selectedValue) {
   }
   if (selectedValue && items.some(i => i.value === selectedValue)) {
     selectEl.value = selectedValue;
-  }
-}
-
-/** Fetch voices for the current language and populate the voice dropdown. */
-async function refreshVoices() {
-  const s = state.get();
-  if (!s.apiKey) return;
-  try {
-    const voices = await fetchVoices(s.apiKey, s.languageCode);
-    const items = voices.map(v => ({ value: v.name, label: v.label }));
-    populateSelect(els.voiceSelect, items, s.voiceName);
-    if (!s.voiceName || !voices.some(v => v.name === s.voiceName)) {
-      const first = voices[0]?.name || '';
-      state.setVoiceName(first);
-      els.voiceSelect.value = first;
-    }
-  } catch (err) {
-    console.error('Failed to fetch voices:', err);
   }
 }
 
@@ -105,26 +87,24 @@ function navigate(route) {
 
 // --- Settings listeners ---
 
-let apiKeyTimer;
 els.apiKeyInput.addEventListener('input', () => {
   state.setApiKey(els.apiKeyInput.value.trim());
-  clearTimeout(apiKeyTimer);
-  apiKeyTimer = setTimeout(refreshVoices, 500);
 });
 
 els.voiceSelect.addEventListener('change', () => {
   state.setVoiceName(els.voiceSelect.value);
 });
 
-els.languageSelect.addEventListener('change', () => {
-  state.setLanguageCode(els.languageSelect.value);
-  refreshVoices();
+els.modelSelect.addEventListener('change', () => {
+  state.setModel(els.modelSelect.value);
 });
 
-els.speedRange.addEventListener('input', () => {
-  const speed = parseFloat(els.speedRange.value);
-  els.speedValue.textContent = speed.toFixed(1);
-  state.setSpeed(speed);
+els.speedSelect.addEventListener('change', () => {
+  state.setSpeed(els.speedSelect.value);
+});
+
+els.languageSelect.addEventListener('change', () => {
+  state.setLanguageCode(els.languageSelect.value);
 });
 
 // --- Init ---
@@ -132,10 +112,14 @@ els.speedRange.addEventListener('input', () => {
 function init() {
   const s = state.get();
   els.apiKeyInput.value = s.apiKey;
+  populateSelect(els.voiceSelect, VOICES.map(v => ({ value: v, label: v })), s.voiceName);
+  if (!s.voiceName || !VOICES.includes(s.voiceName)) {
+    state.setVoiceName(VOICES[0]);
+    els.voiceSelect.value = VOICES[0];
+  }
+  populateSelect(els.modelSelect, MODELS.map(m => ({ value: m.value, label: m.label })), s.ttsModel);
+  populateSelect(els.speedSelect, SPEEDS.map(sp => ({ value: sp.value, label: sp.label })), s.speed);
   populateSelect(els.languageSelect, LANGUAGES.map(l => ({ value: l.code, label: l.name })), s.languageCode);
-  els.speedRange.value = s.speed;
-  els.speedValue.textContent = s.speed.toFixed(1);
-  refreshVoices();
 
   let route = getRouteFromHash();
   // Resume last active non-input view on fresh page load

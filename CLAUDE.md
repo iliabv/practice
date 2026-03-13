@@ -8,7 +8,7 @@
 
 ## Project Overview
 
-A vanilla JavaScript web application for language pronunciation practice. Supports any language available in Google Cloud TTS. Single-page app with no build system, bundler, or framework — pure HTML/CSS/ES6 modules that run directly in the browser.
+A vanilla JavaScript web application for language pronunciation practice. Uses Gemini TTS for speech synthesis. Single-page app with no build system, bundler, or framework — pure HTML/CSS/ES6 modules that run directly in the browser.
 
 ## Architecture
 
@@ -20,7 +20,7 @@ A vanilla JavaScript web application for language pronunciation practice. Suppor
 - **`views/main-view.js`** — Input view: text entry, history list.
 - **`views/text-view.js`** — Text view: sentence rendering, inline player, practice loop, play-all, word interaction/popup, keyboard shortcuts.
 - **`views/words-view.js`** — Words view: cloze/gap-fill cards with sort controls.
-- **`tts.js`** — Google Cloud TTS with Cache API caching. Cache key includes all settings so no manual invalidation needed.
+- **`tts.js`** — Gemini TTS (`generateContent` with `responseModalities:["AUDIO"]`). Exports hardcoded `VOICES`, `MODELS` (flash/pro), `SPEEDS` (slow/normal/fast). Base64 PCM response wrapped in WAV header. Cache API caching with key `model:voice:speed:lang:text`.
 - **`recorder.js`** — MediaRecorder wrapper, returns audio Blob.
 - **`audio-utils.js`** — Audio playback with race condition prevention.
 - **`sentence-parser.js`** — Splits text on sentence boundaries.
@@ -47,5 +47,5 @@ Each view exports a factory receiving dependencies (`state`, `els`, `ui`) and re
 - CSS variables for theming (`--bg`, `--surface`, `--text`, etc.)
 - `.hidden` class for view toggling
 - kebab-case for DOM IDs and CSS classes, camelCase for JS
-- No external dependencies — browser APIs only (Web Audio, MediaRecorder, localStorage, Cache API) plus Google Cloud TTS and Translation REST APIs
+- No external dependencies — browser APIs only (Web Audio, MediaRecorder, localStorage, Cache API) plus Gemini TTS and Google Cloud Translation REST APIs
 - Hash-based routing: `#/` (input), `#/text?id=...` (text), `#/words` (word practice)

@@ -41,8 +41,8 @@ export function loopColor(loopCount) {
 export const els = {
   apiKeyInput: $('#api-key-input'),
   voiceSelect: $('#voice-select'),
-  speedRange: $('#speed-range'),
-  speedValue: $('#speed-value'),
+  modelSelect: $('#model-select'),
+  speedSelect: $('#speed-select'),
   languageSelect: $('#language-select'),
   banner: $('#banner'),
   inputView: $('#input-view'),

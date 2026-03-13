@@ -1,5 +1,5 @@
 import { parseSentences } from '../sentence-parser.js';
-import { textToSpeech, textToSpeechWithTimestamps } from '../tts.js';
+import { textToSpeech } from '../tts.js';
 import { startRecording, stopRecording, ensurePipeline, releasePipeline } from '../recorder.js';
 import { playBlob, stopPlayback, getAudioContext, getAudioContextSync } from '../audio-utils.js';
 import { translateText } from '../translate.js';
@@ -154,6 +154,7 @@ export function createTextView({ state, els, ui }) {
             voiceName: s.voiceName,
             speed: s.speed,
             languageCode: s.languageCode,
+            model: s.ttsModel,
           });
           playBtn.textContent = '▶';
           playBtn.disabled = false;
@@ -183,6 +184,7 @@ export function createTextView({ state, els, ui }) {
             languageCode: s.languageCode,
             voiceName: s.voiceName,
             speed: s.speed,
+            model: s.ttsModel,
           });
           activeWord.isSaved = true;
           updatePlayer();
@@ -619,7 +621,7 @@ export function createTextView({ state, els, ui }) {
     const gen = loopGeneration;
 
     if (!apiKey) {
-      ui.showBanner('Please enter your Google Cloud API key first.');
+      ui.showBanner('Please enter your Gemini API key first.');
       return;
     }
 
@@ -632,6 +634,7 @@ export function createTextView({ state, els, ui }) {
         voiceName: s.voiceName,
         speed: s.speed,
         languageCode: s.languageCode,
+        model: s.ttsModel,
       });
       if (cancelled()) return;
       state.setPhase('playing-original');
@@ -704,19 +707,7 @@ export function createTextView({ state, els, ui }) {
 
   // --- Play all ---
 
-  function buildSentenceTimes(timepoints, sentenceList, duration) {
-    if (timepoints && timepoints.length > 0) {
-      const times = [];
-      for (let i = 0; i < sentenceList.length; i++) {
-        const tp = timepoints.find(t => t.markName === `s${i}`);
-        const nextTp = timepoints.find(t => t.markName === `s${i + 1}`);
-        const start = tp ? parseFloat(tp.timeSeconds) : 0;
-        const end = nextTp ? parseFloat(nextTp.timeSeconds) : duration;
-        times.push({ start, end });
-      }
-      return times;
-    }
-
+  function buildSentenceTimes(sentenceList, duration) {
     const totalChars = sentenceList.reduce((sum, s) => sum + s.length, 0);
     const times = [];
     let offset = 0;
@@ -776,7 +767,7 @@ export function createTextView({ state, els, ui }) {
     const s = state.get();
     const apiKey = s.apiKey;
     if (!apiKey) {
-      ui.showBanner('Please enter your Google Cloud API key first.');
+      ui.showBanner('Please enter your Gemini API key first.');
       return;
     }
 
@@ -786,17 +777,18 @@ export function createTextView({ state, els, ui }) {
     renderFullPlayerLoading();
 
     try {
-      const { blob, timepoints } = await textToSpeechWithTimestamps(sentences, apiKey, {
+      const blob = await textToSpeech(sentences.join(' '), apiKey, {
         voiceName: s.voiceName,
         speed: s.speed,
         languageCode: s.languageCode,
+        model: s.ttsModel,
       });
 
       if (!state.get().playingAll) return;
 
       const ctx = await getAudioContext();
       pa.buffer = await ctx.decodeAudioData(await blob.arrayBuffer());
-      pa.sentenceTimes = buildSentenceTimes(timepoints, sentences, pa.buffer.duration);
+      pa.sentenceTimes = buildSentenceTimes(sentences, pa.buffer.duration);
 
       if (!state.get().playingAll) return;
 
