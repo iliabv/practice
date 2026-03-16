@@ -282,6 +282,13 @@ main {
 .inline-player {
   position: absolute;
   display: flex;
+  flex-direction: column;
+  z-index: 10;
+  transition: top 0.15s ease, left 0.15s ease;
+}
+
+.inline-player-main {
+  display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.3rem 0.6rem;
@@ -290,20 +297,56 @@ main {
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  z-index: 10;
   white-space: nowrap;
-  transition: top 0.15s ease, left 0.15s ease;
   cursor: pointer;
+  position: relative;
+  z-index: 1;
 }
 
-.inline-player:hover:not(.disabled) {
+.inline-player.has-word .inline-player-main {
+  min-width: 18rem;
+}
+
+.inline-player:not(.disabled) .inline-player-main:hover {
   background: rgba(36, 48, 80, 0.95);
 }
 
-.inline-player.disabled {
+.inline-player.disabled .inline-player-main {
   cursor: not-allowed;
   border-color: rgba(255, 255, 255, 0.06);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.inline-player-meta {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.7rem 0.6rem 0.4rem;
+  margin-top: -0.4rem;
+  border-radius: 0 0 0.75rem 0.75rem;
+  background: rgba(25, 36, 64, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: none;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  animation: meta-slide-in 0.2s ease-out forwards;
+  overflow: hidden;
+}
+
+@keyframes meta-slide-in {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
 }
 
 .inline-player.disabled .play-icon {
@@ -580,8 +623,17 @@ main {
 }
 
 .inline-player-translation {
+  margin-left: auto;
   color: var(--text-muted);
   font-size: 0.8rem;
+}
+
+.inline-player-meta span {
+  opacity: 0.7;
+}
+
+.inline-player-meta span:first-child {
+  opacity: 0.85;
 }
 
 .inline-player-action {
@@ -727,7 +779,32 @@ main {
   white-space: nowrap;
 }
 
+.word-card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
 .word-card-translation {
+  font-style: italic;
+}
+
+.word-card-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+.word-card-synonyms {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.word-card-usage {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  opacity: 0.6;
   font-style: italic;
 }
 

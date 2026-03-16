@@ -2,7 +2,7 @@ import { parseSentences } from '../sentence-parser.js';
 import { textToSpeech } from '../tts.js';
 import { startRecording, stopRecording, ensurePipeline, releasePipeline } from '../recorder.js';
 import { playBlob, stopPlayback, getAudioContext, getAudioContextSync } from '../audio-utils.js';
-import { translateText } from '../translate.js';
+import { translateWord } from '../translate.js';
 
 export function createTextView({ state, els, ui }) {
   let sentences = [];
@@ -10,7 +10,7 @@ export function createTextView({ state, els, ui }) {
   let loopGeneration = 0;
   let activeWordIndex = -1;
   let highlightedEls = [];
-  let activeWord = null; // { word, translation, isSaved, sentenceText }
+  let activeWord = null; // { word, wordInfo, isSaved, sentenceText }
   let resolveRecordTrigger = null;
 
   // Play-all state
@@ -107,33 +107,64 @@ export function createTextView({ state, els, ui }) {
     const player = els.inlinePlayer;
     const iconClasses = 'play-icon' + (isRecording ? ' recording' : '') + (isAwaitingRecord ? ' awaiting-record' : '') + ((isLoading || isPreparing) ? ' loading' : '');
 
-    let html = `
+    let mainHtml = `
       <span class="${iconClasses}">${iconContent}</span>
       <span class="loop-counter">${loopCount}x</span>
       ${phaseText ? `<span class="phase-label">${phaseText}</span>` : ''}
     `;
 
     if (activeWord) {
-      const { translation, isSaved } = activeWord;
-      const translationHtml = translation === null
-        ? '<div class="spinner"></div>'
-        : ui.escapeHtml(translation);
+      const { wordInfo, isSaved } = activeWord;
       const saveClass = 'inline-player-action' + (isSaved ? ' saved' : '');
       const saveIcon = isSaved ? '★' : '☆';
       const saveTitle = isSaved ? 'Remove word' : 'Save word';
-      html += `
-        <span class="inline-player-divider"></span>
-        <span class="inline-player-translation">${translationHtml}</span>
+
+      if (wordInfo === null) {
+        mainHtml += `
+          <div class="spinner" style="margin-left:auto"></div>
+        `;
+      } else {
+        mainHtml += `
+          <span class="inline-player-translation">${ui.escapeHtml(wordInfo.translation)}</span>
+        `;
+      }
+      mainHtml += `
         <button class="inline-player-action" title="Play word">▶</button>
         <button class="${saveClass}" title="${saveTitle}">${saveIcon}</button>
       `;
     }
 
-    player.innerHTML = html;
+    // Update main pill content; preserve meta element to avoid re-triggering animation
+    let mainEl = player.querySelector('.inline-player-main');
+    if (!mainEl) {
+      mainEl = document.createElement('div');
+      mainEl.className = 'inline-player-main';
+      player.appendChild(mainEl);
+    }
+    mainEl.innerHTML = mainHtml;
+
+    // Create or remove meta section (only once per word)
+    const existingMeta = player.querySelector('.inline-player-meta');
+    if (activeWord?.wordInfo) {
+      const { wordInfo } = activeWord;
+      const metaParts = [];
+      const detailParts = [wordInfo.infinitive, wordInfo.partOfSpeech].filter(Boolean);
+      if (detailParts.length) metaParts.push(ui.escapeHtml(detailParts.join(' · ')));
+      if (wordInfo.usage) metaParts.push(ui.escapeHtml(wordInfo.usage));
+      if (metaParts.length && !existingMeta) {
+        const metaEl = document.createElement('div');
+        metaEl.className = 'inline-player-meta';
+        metaEl.innerHTML = metaParts.map(p => `<span>${p}</span>`).join('');
+        player.appendChild(metaEl);
+      }
+    } else if (existingMeta) {
+      existingMeta.remove();
+    }
+    player.classList.toggle('has-word', !!activeWord);
     player.classList.toggle('disabled', !interactive);
     player.classList.toggle('recording', isRecording);
     player.classList.remove('hidden');
-    player.onclick = interactive ? onPlay : null;
+    player.querySelector('.inline-player-main').onclick = interactive ? onPlay : null;
 
     if (activeWord) wireWordButtons(player);
     positionInlinePlayer();
@@ -177,10 +208,15 @@ export function createTextView({ state, els, ui }) {
           clearActiveWord();
         } else {
           const s = state.get();
+          const info = activeWord.wordInfo || {};
           state.saveWord({
             word: activeWord.word,
             sentence: activeWord.sentenceText,
-            translation: activeWord.translation || '',
+            translation: info.translation || '',
+            infinitive: info.infinitive || '',
+            partOfSpeech: info.partOfSpeech || '',
+            synonyms: info.synonyms || [],
+            usage: info.usage || '',
             languageCode: s.languageCode,
           });
           activeWord.isSaved = true;
@@ -427,21 +463,20 @@ export function createTextView({ state, els, ui }) {
     }
 
     highlightInSentence(word, sentenceIndex);
-    activeWord = { word, translation: null, isSaved: state.isWordSaved(word, sentenceText), sentenceText };
+    activeWord = { word, wordInfo: null, isSaved: state.isWordSaved(word, sentenceText), sentenceText };
     updatePlayer();
 
     try {
       const s = state.get();
-      const sourceLang = s.languageCode.split('-')[0];
-      const translation = await translateText(word, s.apiKey, sourceLang);
+      const wordInfo = await translateWord(word, s.apiKey, s.languageCode, sentenceText);
       if (!activeWord || activeWord.word !== word) return;
-      activeWord.translation = translation;
+      activeWord.wordInfo = wordInfo;
       activeWord.isSaved = state.isWordSaved(word, sentenceText);
       updatePlayer();
     } catch (err) {
       console.error('Translation failed:', err);
       if (!activeWord || activeWord.word !== word) return;
-      activeWord.translation = '(translation failed)';
+      activeWord.wordInfo = { translation: '(translation failed)', infinitive: '', partOfSpeech: '', synonyms: [], usage: '' };
       updatePlayer();
     }
   }
@@ -655,6 +690,10 @@ export function createTextView({ state, els, ui }) {
       await playBlob(userBlob);
       if (cancelled()) return;
 
+      state.incrementLoop(index);
+      const activeText = state.getActiveText();
+      updateSentenceColor(index, activeText.sentenceProgress[index].loopCount);
+
       state.setPhase('playing-original');
       updatePlayer();
       await new Promise(r => setTimeout(r, 500));
@@ -663,10 +702,7 @@ export function createTextView({ state, els, ui }) {
       if (cancelled()) return;
       setSentenceRevealed(index, false);
 
-      state.incrementLoop(index);
       state.setPhase('idle');
-      const activeText = state.getActiveText();
-      updateSentenceColor(index, activeText.sentenceProgress[index].loopCount);
       updatePlayer();
     } catch (err) {
       if (cancelled()) return;

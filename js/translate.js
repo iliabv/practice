@@ -1,40 +1,77 @@
-const CACHE_NAME = 'google-translate-cache';
-const API_BASE = 'https://translation.googleapis.com/language/translate/v2';
+import { LANGUAGES } from './tts.js';
+
+const CACHE_NAME = 'gemini-translate-cache';
+
+// Clean up old Google Translate cache
+caches.delete('google-translate-cache');
+
+function languageName(languageCode) {
+  const lang = LANGUAGES.find(l => l.code === languageCode);
+  return lang ? lang.name : languageCode;
+}
 
 /**
- * Translate text to English via Google Cloud Translation API.
- * Results are cached via the Cache API.
- * @param {string} text
+ * Translate/analyze a word via Gemini generateContent with structured output.
+ * @param {string} word
  * @param {string} apiKey
- * @param {string} sourceLanguage — e.g. 'nl' (extracted from languageCode at call site)
- * @returns {Promise<string>} English translation
+ * @param {string} sourceLanguage — full languageCode e.g. 'nl-NL'
+ * @param {string} sentenceContext — the sentence containing the word
+ * @returns {Promise<{translation: string, infinitive: string, partOfSpeech: string, synonyms: string[], usage: string}>}
  */
-export async function translateText(text, apiKey, sourceLanguage) {
-  const cacheKey = `https://translate-cache/${encodeURIComponent(`${sourceLanguage}:${text}`)}`;
+export async function translateWord(word, apiKey, sourceLanguage, sentenceContext) {
+  const cacheKey = `https://gemini-translate-cache/${encodeURIComponent(`${sourceLanguage}:${word}:${sentenceContext}`)}`;
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(cacheKey);
-  if (cached) return cached.text();
+  if (cached) return cached.json();
 
-  const res = await fetch(`${API_BASE}?key=${encodeURIComponent(apiKey)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      q: text,
-      source: sourceLanguage,
-      target: 'en',
-      format: 'text',
-    }),
-  });
+  const langName = languageName(sourceLanguage);
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [{
+            text: `Analyze this ${langName} word: "${word}"\nSentence context: "${sentenceContext}"\n\nProvide the English translation (as used in this context), the dictionary/infinitive form, part of speech, 2-3 synonyms in ${langName}, and a brief usage note about this word.`,
+          }],
+        }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'OBJECT',
+            properties: {
+              translation: { type: 'STRING', description: 'English translation of the word as used in this context' },
+              infinitive: { type: 'STRING', description: 'Dictionary/infinitive form of the word' },
+              partOfSpeech: { type: 'STRING', description: 'Part of speech (noun, verb, adjective, etc.)' },
+              synonyms: {
+                type: 'ARRAY',
+                items: { type: 'STRING' },
+                description: `2-3 synonyms in ${langName}`,
+              },
+              usage: { type: 'STRING', description: 'Brief usage note about this word' },
+            },
+            required: ['translation', 'infinitive', 'partOfSpeech', 'synonyms', 'usage'],
+          },
+        },
+      }),
+    },
+  );
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`Google Translate API error ${res.status}: ${body}`);
+    throw new Error(`Gemini API error ${res.status}: ${body}`);
   }
 
   const data = await res.json();
-  const translation = data.data.translations[0].translatedText;
-  await cache.put(cacheKey, new Response(translation, {
-    headers: { 'Content-Type': 'text/plain' },
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error('No response from Gemini');
+
+  const result = JSON.parse(text);
+  await cache.put(cacheKey, new Response(JSON.stringify(result), {
+    headers: { 'Content-Type': 'application/json' },
   }));
-  return translation;
+  return result;
 }

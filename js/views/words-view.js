@@ -92,12 +92,38 @@ export function createWordsView({ state, els, ui }) {
       statsSpan.className = 'word-card-stats';
       statsSpan.textContent = formatStats(wordEntry);
 
+      const detailsDiv = document.createElement('div');
+      detailsDiv.className = 'word-card-details hidden';
+
       const translationSpan = document.createElement('span');
-      translationSpan.className = 'word-card-translation hidden';
+      translationSpan.className = 'word-card-translation';
       translationSpan.textContent = wordEntry.translation || '';
+      detailsDiv.appendChild(translationSpan);
+
+      const metaParts = [wordEntry.infinitive, wordEntry.partOfSpeech].filter(Boolean);
+      if (metaParts.length) {
+        const metaSpan = document.createElement('span');
+        metaSpan.className = 'word-card-meta';
+        metaSpan.textContent = metaParts.join(' · ');
+        detailsDiv.appendChild(metaSpan);
+      }
+
+      if (wordEntry.synonyms?.length) {
+        const synSpan = document.createElement('span');
+        synSpan.className = 'word-card-synonyms';
+        synSpan.textContent = wordEntry.synonyms.join(', ');
+        detailsDiv.appendChild(synSpan);
+      }
+
+      if (wordEntry.usage) {
+        const usageSpan = document.createElement('span');
+        usageSpan.className = 'word-card-usage';
+        usageSpan.textContent = wordEntry.usage;
+        detailsDiv.appendChild(usageSpan);
+      }
 
       infoDiv.appendChild(statsSpan);
-      infoDiv.appendChild(translationSpan);
+      infoDiv.appendChild(detailsDiv);
 
       const actions = document.createElement('div');
       actions.className = 'word-card-actions';
@@ -121,7 +147,7 @@ export function createWordsView({ state, els, ui }) {
         if (gap.classList.contains('revealed')) return;
         gap.textContent = wordEntry.word;
         gap.classList.add('revealed');
-        translationSpan.classList.remove('hidden');
+        detailsDiv.classList.remove('hidden');
         revealBtn.classList.add('hidden');
         thumbUpBtn.classList.remove('hidden');
         thumbDownBtn.classList.remove('hidden');

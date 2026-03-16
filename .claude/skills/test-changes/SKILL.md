@@ -1,7 +1,7 @@
 ---
 name: test-changes
 description: Use after making code changes to test in a real browser. Provides scoped test recipes per view, state seeding patterns, and API mocking to verify changes without a real Gemini API key.
-allowed-tools: Bash(playwright-cli:*), Bash(python3:*)
+allowed-tools: Bash(playwright-cli *), Bash(python3 *), Bash(lsof *)
 ---
 
 # Test Changes
@@ -52,13 +52,19 @@ python3 .claude/skills/test-changes/seed-state.py '{"apiKey":"fake","languageCod
 
 **Words view** (1 saved word) — append `#/words`:
 ```bash
-python3 .claude/skills/test-changes/seed-state.py '{"apiKey":"","languageCode":"nl-NL","voiceName":"Zephyr","ttsModel":"gemini-2.5-flash-preview-tts","speed":"normal","texts":[],"savedWords":[{"id":"w1","word":"test","wordLower":"test","sentence":"Dit is een test zin.","translation":"This is a test sentence.","languageCode":"nl-NL","createdAt":1700000000000,"practices":[],"easeFactor":2.5,"interval":1,"nextDue":0}],"wordsSortMode":"recent"}'
+python3 .claude/skills/test-changes/seed-state.py '{"apiKey":"","languageCode":"nl-NL","voiceName":"Zephyr","ttsModel":"gemini-2.5-flash-preview-tts","speed":"normal","texts":[],"savedWords":[{"id":"w1","word":"huis","wordLower":"huis","sentence":"Dit is een groot huis.","translation":"house","infinitive":"huis","partOfSpeech":"noun","synonyms":["woning","verblijf"],"usage":"Common word for house or home","languageCode":"nl-NL","createdAt":1700000000000,"practices":[],"easeFactor":2.5,"interval":1,"nextDue":0}],"wordsSortMode":"recent"}'
 ```
 
 **Input view** (1 history entry) — append `#/`:
 ```bash
 python3 .claude/skills/test-changes/seed-state.py '{"apiKey":"","languageCode":"nl-NL","voiceName":"Zephyr","ttsModel":"gemini-2.5-flash-preview-tts","speed":"normal","texts":[{"id":"id1","text":"Zin één. Zin twee. Zin drie.","sentenceProgress":[{"loopCount":0},{"loopCount":0},{"loopCount":0}],"createdAt":1700000000000}],"savedWords":[]}'
 ```
+
+## Important: Command Structure
+
+- **Never chain** playwright-cli or python3 commands with `&&` or `;` — chained commands won't match the permission allowlist and will prompt the user.
+- Run each command as a **separate Bash call**. Use parallel tool calls for independent commands (e.g. `seed-state.py` and `lsof` can run in parallel).
+- Sequential dependencies (e.g. `open` then `route` then `eval`) must be separate sequential Bash calls.
 
 ## Element Refs
 

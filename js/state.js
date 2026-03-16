@@ -221,13 +221,17 @@ export function createState() {
 
     // --- Saved words ---
 
-    saveWord({ word, sentence, translation, languageCode }) {
+    saveWord({ word, sentence, translation, infinitive, partOfSpeech, synonyms, usage, languageCode }) {
       const entry = {
         id: generateId(),
         word,
         wordLower: word.toLowerCase(),
         sentence,
         translation,
+        infinitive: infinitive || '',
+        partOfSpeech: partOfSpeech || '',
+        synonyms: synonyms || [],
+        usage: usage || '',
         languageCode,
         createdAt: Date.now(),
         practices: [],
