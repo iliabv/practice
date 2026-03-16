@@ -655,6 +655,52 @@ main {
   color: var(--accent);
 }
 
+.inline-player-explain {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.inline-player-explain:hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.inline-player-explain.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.inline-player-explain .spinner {
+  width: 12px;
+  height: 12px;
+  border-width: 1.5px;
+}
+
+.meta-explain-translation {
+  font-style: italic;
+}
+
+.meta-explain-grammar {
+  opacity: 0.6;
+}
+
+.meta-divider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 0.2rem 0;
+}
+
 /* Words view */
 .words-header {
   display: flex;

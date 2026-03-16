@@ -2,7 +2,7 @@ import { parseSentences } from '../sentence-parser.js';
 import { textToSpeech } from '../tts.js';
 import { startRecording, stopRecording, ensurePipeline, releasePipeline } from '../recorder.js';
 import { playBlob, stopPlayback, getAudioContext, getAudioContextSync } from '../audio-utils.js';
-import { translateWord } from '../translate.js';
+import { translateWord, explainSentence } from '../translate.js';
 
 export function createTextView({ state, els, ui }) {
   let sentences = [];
@@ -11,6 +11,7 @@ export function createTextView({ state, els, ui }) {
   let activeWordIndex = -1;
   let highlightedEls = [];
   let activeWord = null; // { word, wordInfo, isSaved, sentenceText }
+  let sentenceExplain = null; // null | { loading, data: { translation, grammar } }
   let resolveRecordTrigger = null;
 
   // Play-all state
@@ -134,6 +135,11 @@ export function createTextView({ state, els, ui }) {
       `;
     }
 
+    // Explain button (always visible)
+    const explainClass = 'inline-player-explain' + (sentenceExplain?.data ? ' active' : '');
+    const explainContent = sentenceExplain?.loading ? '<div class="spinner"></div>' : '?';
+    mainHtml += `<button class="${explainClass}"${!activeWord ? ' style="margin-left:auto"' : ''} title="Explain sentence">${explainContent}</button>`;
+
     // Update main pill content; preserve meta element to avoid re-triggering animation
     let mainEl = player.querySelector('.inline-player-main');
     if (!mainEl) {
@@ -143,30 +149,44 @@ export function createTextView({ state, els, ui }) {
     }
     mainEl.innerHTML = mainHtml;
 
-    // Create or remove meta section (only once per word)
+    // Build meta content (word info and/or sentence explanation)
     const existingMeta = player.querySelector('.inline-player-meta');
+    let metaHtml = '';
     if (activeWord?.wordInfo) {
       const { wordInfo } = activeWord;
       const metaParts = [];
       const detailParts = [wordInfo.infinitive, wordInfo.partOfSpeech].filter(Boolean);
       if (detailParts.length) metaParts.push(ui.escapeHtml(detailParts.join(' · ')));
       if (wordInfo.usage) metaParts.push(ui.escapeHtml(wordInfo.usage));
-      if (metaParts.length && !existingMeta) {
+      if (metaParts.length) metaHtml += metaParts.map(p => `<span>${p}</span>`).join('');
+    }
+    if (activeWord?.wordInfo && sentenceExplain?.data) {
+      metaHtml += '<hr class="meta-divider">';
+    }
+    if (sentenceExplain?.data) {
+      metaHtml += `<span class="meta-explain-translation">${ui.escapeHtml(sentenceExplain.data.translation)}</span>`;
+      metaHtml += `<span class="meta-explain-grammar">${ui.escapeHtml(sentenceExplain.data.grammar)}</span>`;
+    }
+    if (metaHtml) {
+      if (existingMeta) {
+        existingMeta.innerHTML = metaHtml;
+      } else {
         const metaEl = document.createElement('div');
         metaEl.className = 'inline-player-meta';
-        metaEl.innerHTML = metaParts.map(p => `<span>${p}</span>`).join('');
+        metaEl.innerHTML = metaHtml;
         player.appendChild(metaEl);
       }
     } else if (existingMeta) {
       existingMeta.remove();
     }
-    player.classList.toggle('has-word', !!activeWord);
+    player.classList.toggle('has-word', !!activeWord || !!sentenceExplain?.data);
     player.classList.toggle('disabled', !interactive);
     player.classList.toggle('recording', isRecording);
     player.classList.remove('hidden');
     player.querySelector('.inline-player-main').onclick = interactive ? onPlay : null;
 
     if (activeWord) wireWordButtons(player);
+    wireExplainButton(player);
     positionInlinePlayer();
   }
 
@@ -232,8 +252,47 @@ export function createTextView({ state, els, ui }) {
     updatePlayer();
   }
 
+  function wireExplainButton(player) {
+    const btn = player.querySelector('.inline-player-explain');
+    if (btn) {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        onExplainClick();
+      };
+    }
+  }
+
+  async function onExplainClick() {
+    if (sentenceExplain) {
+      sentenceExplain = null;
+      updatePlayer();
+      return;
+    }
+
+    const s = state.get();
+    const index = s.activeSentenceIndex;
+    if (index < 0 || !s.apiKey) return;
+
+    const sentenceText = sentences[index];
+    sentenceExplain = { loading: true, data: null };
+    updatePlayer();
+
+    try {
+      const data = await explainSentence(sentenceText, s.apiKey, s.languageCode);
+      if (state.get().activeSentenceIndex !== index) return;
+      sentenceExplain = { loading: false, data };
+      updatePlayer();
+    } catch (err) {
+      console.error('Explain failed:', err);
+      if (state.get().activeSentenceIndex !== index) return;
+      sentenceExplain = { loading: false, data: { translation: '(failed)', grammar: '' } };
+      updatePlayer();
+    }
+  }
+
   function clearPlayer() {
     activeWord = null;
+    sentenceExplain = null;
     clearHighlight();
     els.inlinePlayer.classList.add('hidden');
     els.inlinePlayer.innerHTML = '';
@@ -485,50 +544,6 @@ export function createTextView({ state, els, ui }) {
     showTranslationPopup(word, wordSpan.getBoundingClientRect(), sentenceText);
   }
 
-  // --- Text selection popup ---
-
-  function getSentenceFromNode(node) {
-    const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-    const sentence = el?.closest('.sentence');
-    return sentence ? Number(sentence.dataset.index) : -1;
-  }
-
-  function onTextSelect() {
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) return;
-
-    const text = sel.toString().trim();
-    if (!text) return;
-
-    const range = sel.getRangeAt(0);
-
-    // If selection is within a single .word span in the active sentence, let word click handle it
-    const startEl = range.startContainer.nodeType === Node.TEXT_NODE
-      ? range.startContainer.parentElement : range.startContainer;
-    const endEl = range.endContainer.nodeType === Node.TEXT_NODE
-      ? range.endContainer.parentElement : range.endContainer;
-    const startWord = startEl?.closest('.sentence.active .word');
-    const endWord = endEl?.closest('.sentence.active .word');
-    if (startWord && endWord && startWord === endWord) return;
-
-    const sentenceIndex = getSentenceFromNode(range.startContainer);
-    if (sentenceIndex < 0) return;
-
-    const sentenceText = sentences[sentenceIndex];
-    if (!sentenceText) return;
-
-    const cleanText = text.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
-    if (!cleanText) return;
-
-    const anchorRect = range.getBoundingClientRect();
-    sel.removeAllRanges();
-    showTranslationPopup(cleanText, anchorRect, sentenceText);
-  }
-
-  function onTextSelectDeferred() {
-    setTimeout(onTextSelect, 0);
-  }
-
   // --- Abort / cancel ---
 
   function abortLoop() {
@@ -549,6 +564,7 @@ export function createTextView({ state, els, ui }) {
       activeWordIndex = -1;
     }
     activeWord = null;
+    sentenceExplain = null;
     clearHighlight();
     state.setActiveSentence(-1);
     setActiveSentence(-1);
@@ -567,6 +583,7 @@ export function createTextView({ state, els, ui }) {
         activeWordIndex = -1;
       }
       activeWord = null;
+      sentenceExplain = null;
       clearHighlight();
       abortLoop();
       state.setActiveSentence(index);
@@ -908,8 +925,11 @@ export function createTextView({ state, els, ui }) {
   // --- Escape handler ---
 
   function onEscape() {
-    if (activeWord) {
-      clearActiveWord();
+    if (activeWord || sentenceExplain) {
+      activeWord = null;
+      sentenceExplain = null;
+      clearHighlight();
+      updatePlayer();
       return;
     }
 
@@ -1025,7 +1045,6 @@ export function createTextView({ state, els, ui }) {
       ui.setActiveNav('text');
       els.toggleTextBtn.addEventListener('click', toggleTextHidden);
       els.holdMicBtn.addEventListener('click', toggleHoldMic);
-      els.sentencesPanel.addEventListener('mouseup', onTextSelectDeferred);
       document.addEventListener('keydown', onKeyDown);
       document.addEventListener('mousedown', onMouseDown);
       window.addEventListener('resize', positionInlinePlayer);
@@ -1039,7 +1058,6 @@ export function createTextView({ state, els, ui }) {
     leave() {
       els.toggleTextBtn.removeEventListener('click', toggleTextHidden);
       els.holdMicBtn.removeEventListener('click', toggleHoldMic);
-      els.sentencesPanel.removeEventListener('mouseup', onTextSelectDeferred);
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('resize', positionInlinePlayer);
