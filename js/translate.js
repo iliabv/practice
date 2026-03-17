@@ -35,7 +35,7 @@ export async function translateWord(word, apiKey, sourceLanguage, sentenceContex
         contents: [{
           role: 'user',
           parts: [{
-            text: `Analyze this ${langName} word: "${word}"\nSentence context: "${sentenceContext}"\n\nProvide the English translation (as used in this context), the dictionary/infinitive form, part of speech, 2-3 synonyms in ${langName}, and a brief usage note about this word.`,
+            text: `Analyze this ${langName} word: "${word}"\nSentence context: "${sentenceContext}"\n\nProvide the English translation (as used in this context), the dictionary/infinitive form, part of speech, 2-3 synonyms in ${langName}, and a short plain-English usage note. Keep everything brief — no linguistic jargon.`,
           }],
         }],
         generationConfig: {
@@ -51,7 +51,7 @@ export async function translateWord(word, apiKey, sourceLanguage, sentenceContex
                 items: { type: 'STRING' },
                 description: `2-3 synonyms in ${langName}`,
               },
-              usage: { type: 'STRING', description: 'Brief usage note about this word' },
+              usage: { type: 'STRING', description: 'Short plain-English usage tip (no jargon, 1 sentence max)' },
             },
             required: ['translation', 'infinitive', 'partOfSpeech', 'synonyms', 'usage'],
           },
@@ -100,7 +100,7 @@ export async function explainSentence(sentence, apiKey, sourceLanguage) {
         contents: [{
           role: 'user',
           parts: [{
-            text: `Translate this ${langName} sentence to English and briefly explain its grammar.\n\nSentence: "${sentence}"`,
+            text: `Translate this ${langName} sentence to English. Identify grammar rules used in the sentence and explain them in 1-2 short sentences without excessive linguistic terminology.\n\nSentence: "${sentence}"`,
           }],
         }],
         generationConfig: {
@@ -109,7 +109,7 @@ export async function explainSentence(sentence, apiKey, sourceLanguage) {
             type: 'OBJECT',
             properties: {
               translation: { type: 'STRING', description: 'English translation of the sentence' },
-              grammar: { type: 'STRING', description: 'Brief grammar explanation (key structures, tenses, word order)' },
+              grammar: { type: 'STRING', description: 'Simple plain-English explanation of the grammar (1-2 sentences)' },
             },
             required: ['translation', 'grammar'],
           },
