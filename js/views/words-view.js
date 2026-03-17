@@ -97,30 +97,10 @@ export function createWordsView({ state, els, ui }) {
 
       const translationSpan = document.createElement('span');
       translationSpan.className = 'word-card-translation';
-      translationSpan.textContent = wordEntry.translation || '';
+      const parts = [wordEntry.translation || ''];
+      if (wordEntry.synonyms?.length) parts.push(wordEntry.synonyms.join(', '));
+      translationSpan.textContent = parts.join(' · ');
       detailsDiv.appendChild(translationSpan);
-
-      const metaParts = [wordEntry.infinitive, wordEntry.partOfSpeech].filter(Boolean);
-      if (metaParts.length) {
-        const metaSpan = document.createElement('span');
-        metaSpan.className = 'word-card-meta';
-        metaSpan.textContent = metaParts.join(' · ');
-        detailsDiv.appendChild(metaSpan);
-      }
-
-      if (wordEntry.synonyms?.length) {
-        const synSpan = document.createElement('span');
-        synSpan.className = 'word-card-synonyms';
-        synSpan.textContent = wordEntry.synonyms.join(', ');
-        detailsDiv.appendChild(synSpan);
-      }
-
-      if (wordEntry.usage) {
-        const usageSpan = document.createElement('span');
-        usageSpan.className = 'word-card-usage';
-        usageSpan.textContent = wordEntry.usage;
-        detailsDiv.appendChild(usageSpan);
-      }
 
       infoDiv.appendChild(statsSpan);
       infoDiv.appendChild(detailsDiv);
@@ -143,6 +123,11 @@ export function createWordsView({ state, els, ui }) {
       thumbDownBtn.textContent = '\u2717';
       thumbDownBtn.title = "I didn't know it";
 
+      const hint = () => {
+        if (gap.classList.contains('revealed')) return;
+        detailsDiv.classList.toggle('hidden');
+      };
+
       const reveal = () => {
         if (gap.classList.contains('revealed')) return;
         gap.textContent = wordEntry.word;
@@ -154,8 +139,32 @@ export function createWordsView({ state, els, ui }) {
         playAudio();
       };
 
+      let longPressTimer = null;
+      let wasLongPress = false;
+      gap.addEventListener('pointerdown', () => {
+        if (gap.classList.contains('revealed')) return;
+        wasLongPress = false;
+        longPressTimer = setTimeout(() => {
+          longPressTimer = null;
+          wasLongPress = true;
+          hint();
+        }, 500);
+      });
+      gap.addEventListener('pointerup', () => {
+        if (longPressTimer !== null) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+      });
+      gap.addEventListener('pointercancel', () => {
+        if (longPressTimer !== null) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+      });
+
       revealBtn.onclick = reveal;
-      gap.onclick = reveal;
+      gap.onclick = () => { if (!wasLongPress) reveal(); };
 
       let hasRated = false;
       const rate = (correct) => {
@@ -233,6 +242,7 @@ export function createWordsView({ state, els, ui }) {
 
       cardActions.push({
         element: card,
+        hint,
         reveal,
         rate,
         playAudio,
@@ -300,6 +310,11 @@ export function createWordsView({ state, els, ui }) {
           focusedIndex--;
           updateFocus();
         }
+        break;
+      case 'h':
+      case 'H':
+        e.preventDefault();
+        card.hint();
         break;
       case 'p':
       case 'P':

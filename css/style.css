@@ -830,32 +830,7 @@ main {
   white-space: nowrap;
 }
 
-.word-card-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
 .word-card-translation {
-  font-style: italic;
-}
-
-.word-card-meta {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  opacity: 0.8;
-}
-
-.word-card-synonyms {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  opacity: 0.7;
-}
-
-.word-card-usage {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  opacity: 0.6;
   font-style: italic;
 }
 
