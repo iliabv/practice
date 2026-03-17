@@ -131,7 +131,7 @@ export function createTextView({ state, els, ui }) {
       }
       mainHtml += `
         <button class="inline-player-action" title="Play word">▶</button>
-        <button class="${saveClass}" title="${saveTitle}">${saveIcon}</button>
+        <button class="${saveClass}" title="${saveTitle}"${wordInfo === null ? ' disabled' : ''}>${saveIcon}</button>
       `;
     }
 
@@ -221,7 +221,7 @@ export function createTextView({ state, els, ui }) {
     if (saveBtn) {
       saveBtn.onclick = (e) => {
         e.stopPropagation();
-        if (!activeWord) return;
+        if (!activeWord || !activeWord.wordInfo) return;
         if (activeWord.isSaved) {
           const saved = state.getSavedWord(activeWord.word, activeWord.sentenceText);
           if (saved) state.deleteWord(saved.id);

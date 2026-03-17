@@ -647,8 +647,13 @@ main {
   transition: color 0.15s;
 }
 
-.inline-player-action:hover {
+.inline-player-action:hover:not(:disabled) {
   color: var(--text);
+}
+
+.inline-player-action:disabled {
+  cursor: default;
+  opacity: 0.4;
 }
 
 .inline-player-action.saved {
