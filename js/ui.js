@@ -27,14 +27,15 @@ export function confirmDelete(btn, onConfirm) {
 
 /**
  * Compute sentence background color from loop count.
- * Subtle bg at 0 → orange at 1 → gradually to dark green at 10+ loops.
+ * Transparent at 0 → warm amber at 1 → gradually to olive-green at 10+ loops.
+ * Tuned for light bg (~97% L): subtle warm tints that darken slightly from bg.
  */
 export function loopColor(loopCount) {
-  if (loopCount === 0) return 'hsl(240, 25%, 18%)';
+  if (loopCount === 0) return 'transparent';
   const t = Math.min(loopCount / 10, 1);
-  const hue = 30 + t * 90;   // 30° (orange) → 120° (green)
-  const sat = 70;
-  const lit = 25 + t * 5;    // 25% → 30%
+  const hue = 40 + t * 35;   // 40° (amber) → 75° (olive)
+  const sat = 50 - t * 15;   // 50% → 35%
+  const lit = 90 - t * 8;    // 90% → 82%
   return `hsl(${hue}, ${sat}%, ${lit}%)`;
 }
 

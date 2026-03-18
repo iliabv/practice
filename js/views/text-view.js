@@ -95,7 +95,7 @@ export function createTextView({ state, els, ui }) {
 
     const iconContent = (isLoading || isPreparing)
       ? '<div class="spinner"></div>'
-      : isRecording ? '⏹' : isAwaitingRecord ? '⏺' : '▶';
+      : isRecording ? '⏹' : isAwaitingRecord ? '⏺' : '<span class="icon-triangle"></span>';
 
     let phaseText = '';
     if (phase === 'loading') phaseText = 'Loading…';
@@ -318,7 +318,7 @@ export function createTextView({ state, els, ui }) {
   function renderFullPlayerIdle() {
     const player = els.fullPlayer;
     player.innerHTML = `
-      <button class="full-player-btn">▶</button>
+      <button class="full-player-btn"><span class="icon-triangle"></span></button>
       <div class="full-player-track disabled">
         <div class="full-player-fill" style="width:0%"></div>
       </div>
@@ -341,7 +341,7 @@ export function createTextView({ state, els, ui }) {
   function renderFullPlayer({ playing, onPlayPause, onSeek }) {
     const player = els.fullPlayer;
     player.innerHTML = `
-      <button class="full-player-btn">${playing ? '⏸' : '▶'}</button>
+      <button class="full-player-btn">${playing ? '⏸' : '<span class="icon-triangle"></span>'}</button>
       <div class="full-player-track">
         <div class="full-player-fill" style="width:0%"></div>
         <div class="full-player-caret" style="left:0%"></div>
@@ -386,7 +386,7 @@ export function createTextView({ state, els, ui }) {
 
   function updateFullPlayerButton(playing) {
     const btn = els.fullPlayer.querySelector('.full-player-btn');
-    if (btn) btn.textContent = playing ? '⏸' : '▶';
+    if (btn) btn.innerHTML = playing ? '⏸' : '<span class="icon-triangle"></span>';
   }
 
   function clearFullPlayer() {
