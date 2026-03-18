@@ -32,10 +32,10 @@ export function confirmDelete(btn, onConfirm) {
  */
 export function loopColor(loopCount) {
   if (loopCount === 0) return 'transparent';
-  const t = Math.min(loopCount / 10, 1);
-  const hue = 40 + t * 35;   // 40° (amber) → 75° (olive)
-  const sat = 50 - t * 15;   // 50% → 35%
-  const lit = 90 - t * 8;    // 90% → 82%
+  const t = Math.min(loopCount / 7, 1);
+  const hue = 35 + t * 95;   // 35° (warm amber) → 130° (green)
+  const sat = 30 + t * 25;   // 30% → 55%
+  const lit = 90 - t * 18;   // 90% → 72%
   return `hsl(${hue}, ${sat}%, ${lit}%)`;
 }
 

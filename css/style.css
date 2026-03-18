@@ -83,7 +83,7 @@ header {
 
 .header-nav {
   display: flex;
-  background: rgba(var(--overlay-rgb), 0.12);
+  background: rgba(var(--overlay-rgb), 0.07);
   border-radius: var(--radius-sm);
   padding: 3px;
 }
@@ -107,7 +107,7 @@ header {
 .nav-link.active {
   color: var(--text);
   background: rgba(var(--highlight-rgb), 0.12);
-  box-shadow: 0 1px 4px rgba(var(--overlay-rgb), 0.2);
+  box-shadow: 0 1px 4px rgba(var(--overlay-rgb), 0.12);
 }
 
 /* ===== Controls ===== */
@@ -117,7 +117,7 @@ header {
   align-items: center;
   gap: 0.5rem 1rem;
   padding: 0.5rem 0.75rem;
-  background: rgba(var(--overlay-rgb), 0.08);
+  background: rgba(var(--overlay-rgb), 0.05);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
 }
@@ -374,7 +374,7 @@ main {
   line-height: 2.2;
   position: relative;
   padding: 1.5rem 1.25rem;
-  background: rgba(var(--overlay-rgb), 0.10);
+  background: rgba(var(--overlay-rgb), 0.06);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-subtle);
   font-family: var(--font-read);
@@ -410,7 +410,7 @@ main {
 /* Hidden text mode */
 .sentences-panel.text-hidden .sentence {
   color: transparent;
-  outline-color: rgba(var(--overlay-rgb), 0.05);
+  outline-color: rgba(var(--overlay-rgb), 0.03);
 }
 
 .sentences-panel.text-hidden .sentence:hover {
@@ -444,8 +444,8 @@ main {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(var(--highlight-rgb), 0.10);
-  box-shadow: 0 4px 20px rgba(var(--overlay-rgb), 0.25),
-    0 0 0 1px rgba(var(--overlay-rgb), 0.08);
+  box-shadow: 0 4px 20px rgba(var(--overlay-rgb), 0.15),
+    0 0 0 1px rgba(var(--overlay-rgb), 0.05);
   white-space: nowrap;
   cursor: pointer;
   position: relative;
@@ -464,7 +464,7 @@ main {
 .inline-player.disabled .inline-player-main {
   cursor: not-allowed;
   border-color: rgba(var(--highlight-rgb), 0.05);
-  box-shadow: 0 4px 16px rgba(var(--overlay-rgb), 0.2);
+  box-shadow: 0 4px 16px rgba(var(--overlay-rgb), 0.12);
 }
 
 /* Play icon */
@@ -626,7 +626,7 @@ main {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(var(--highlight-rgb), 0.08);
-  box-shadow: 0 2px 8px rgba(var(--overlay-rgb), 0.08);
+  box-shadow: 0 2px 8px rgba(var(--overlay-rgb), 0.05);
   font-size: 0.75rem;
   color: var(--text-secondary);
   animation: meta-slide-in 0.2s ease-out forwards;
@@ -685,7 +685,7 @@ main {
   padding: 0.65rem 0.85rem;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
-  background: rgba(var(--overlay-rgb), 0.08);
+  background: rgba(var(--overlay-rgb), 0.05);
 }
 
 .full-player-btn {
@@ -717,7 +717,7 @@ main {
   flex: 1;
   height: 4px;
   border-radius: 2px;
-  background: rgba(var(--overlay-rgb), 0.15);
+  background: rgba(var(--overlay-rgb), 0.09);
   position: relative;
   cursor: pointer;
 }
@@ -788,7 +788,7 @@ main {
 
 .words-sort-controls {
   display: flex;
-  background: rgba(var(--overlay-rgb), 0.12);
+  background: rgba(var(--overlay-rgb), 0.07);
   border-radius: var(--radius-sm);
   padding: 3px;
 }
@@ -813,7 +813,7 @@ main {
 .words-sort-controls button.active {
   background: rgba(var(--highlight-rgb), 0.12);
   color: var(--text);
-  box-shadow: 0 1px 3px rgba(var(--overlay-rgb), 0.2);
+  box-shadow: 0 1px 3px rgba(var(--overlay-rgb), 0.12);
 }
 
 /* ===== Word Cards ===== */
@@ -825,16 +825,16 @@ main {
   column-gap: 0.5rem;
   padding: 1rem 1.2rem;
   padding-left: 1.4rem;
-  border: 1px solid rgba(var(--overlay-rgb), 0.08);
+  border: 1px solid rgba(var(--overlay-rgb), 0.05);
   border-left: 3px solid var(--border);
   border-radius: var(--radius);
-  background: rgba(var(--overlay-rgb), 0.06);
+  background: rgba(var(--overlay-rgb), 0.04);
   margin-bottom: 0.5rem;
   transition: border-color 0.2s, background-color 0.2s;
 }
 
 .word-card:hover {
-  background: rgba(var(--overlay-rgb), 0.10);
+  background: rgba(var(--overlay-rgb), 0.06);
 }
 
 .word-card-sentence {
@@ -980,7 +980,7 @@ main {
 .word-card.focused {
   border-color: rgba(var(--highlight-rgb), 0.12);
   border-left-color: var(--accent);
-  background: rgba(var(--overlay-rgb), 0.10);
+  background: rgba(var(--overlay-rgb), 0.06);
 }
 
 .word-card-btn.loading {
