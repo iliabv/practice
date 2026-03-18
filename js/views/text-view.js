@@ -12,7 +12,15 @@ export function createTextView({ state, els, ui }) {
   let highlightedEls = [];
   let activeWord = null; // { word, wordInfo, isSaved, sentenceText }
   let sentenceExplain = null; // null | { loading, data: { translation, grammar } }
+  let wordPlayState = null; // null | 'loading' | 'playing'
+  let wordPlayGen = 0;
   let resolveRecordTrigger = null;
+
+  function stopWordPlay() {
+    wordPlayGen++;
+    stopPlayback();
+    wordPlayState = null;
+  }
 
   // Play-all state
   const pa = {
@@ -95,7 +103,7 @@ export function createTextView({ state, els, ui }) {
 
     const iconContent = (isLoading || isPreparing)
       ? '<div class="spinner"></div>'
-      : isRecording ? '⏹' : isAwaitingRecord ? '⏺' : '<span class="icon-triangle"></span>';
+      : isRecording ? '<span class="icon-stop"></span>' : isAwaitingRecord ? '<span class="icon-record"></span>' : '<span class="icon-triangle"></span>';
 
     let phaseText = '';
     if (phase === 'loading') phaseText = 'Loading…';
@@ -129,8 +137,14 @@ export function createTextView({ state, els, ui }) {
           <span class="inline-player-translation">${ui.escapeHtml(wordInfo.translation)}</span>
         `;
       }
+      const wordBtnContent = wordPlayState === 'loading'
+        ? '<div class="spinner"></div>'
+        : wordPlayState === 'playing'
+          ? '<span class="icon-stop"></span>'
+          : '▶';
+      const wordBtnTitle = wordPlayState === 'playing' ? 'Stop' : 'Play word';
       mainHtml += `
-        <button class="inline-player-action" title="Play word">▶</button>
+        <button class="inline-player-action word-play" title="${wordBtnTitle}">${wordBtnContent}</button>
         <button class="${saveClass}" title="${saveTitle}"${wordInfo === null ? ' disabled' : ''}>${saveIcon}</button>
       `;
     }
@@ -191,15 +205,21 @@ export function createTextView({ state, els, ui }) {
   }
 
   function wireWordButtons(player) {
-    const playBtn = player.querySelector('[title="Play word"]');
+    const playBtn = player.querySelector('.word-play');
     if (playBtn) {
       playBtn.onclick = async (e) => {
         e.stopPropagation();
         if (!activeWord) return;
+        if (wordPlayState) {
+          stopWordPlay();
+          updatePlayer();
+          return;
+        }
         const s = state.get();
         if (!s.apiKey) return;
-        playBtn.textContent = '…';
-        playBtn.disabled = true;
+        const gen = ++wordPlayGen;
+        wordPlayState = 'loading';
+        updatePlayer();
         try {
           const blob = await textToSpeech(activeWord.word, s.apiKey, {
             voiceName: s.voiceName,
@@ -207,12 +227,17 @@ export function createTextView({ state, els, ui }) {
             languageCode: s.languageCode,
             model: s.ttsModel,
           });
-          playBtn.textContent = '▶';
-          playBtn.disabled = false;
+          if (gen !== wordPlayGen) return;
+          wordPlayState = 'playing';
+          updatePlayer();
           await playBlob(blob);
         } catch {
-          playBtn.textContent = '▶';
-          playBtn.disabled = false;
+          // ignore if cancelled
+        } finally {
+          if (gen === wordPlayGen) {
+            wordPlayState = null;
+            updatePlayer();
+          }
         }
       };
     }
@@ -248,6 +273,7 @@ export function createTextView({ state, els, ui }) {
 
   function clearActiveWord() {
     activeWord = null;
+    if (wordPlayState) stopWordPlay();
     clearHighlight();
     updatePlayer();
   }
@@ -292,6 +318,7 @@ export function createTextView({ state, els, ui }) {
 
   function clearPlayer() {
     activeWord = null;
+    if (wordPlayState) stopWordPlay();
     sentenceExplain = null;
     clearHighlight();
     els.inlinePlayer.classList.add('hidden');
@@ -926,6 +953,7 @@ export function createTextView({ state, els, ui }) {
 
   function onEscape() {
     if (activeWord || sentenceExplain) {
+      if (wordPlayState) stopWordPlay();
       activeWord = null;
       sentenceExplain = null;
       clearHighlight();

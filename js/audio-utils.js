@@ -59,9 +59,7 @@ export function stopPlayback() {
   if (currentAudio) {
     currentAudio.oncanplaythrough = null;
     currentAudio.pause();
-    currentAudio.currentTime = 0;
-    URL.revokeObjectURL(currentUrl);
-    currentAudio = null;
-    currentUrl = null;
+    // Dispatch 'ended' so the playBlob promise resolves and callers can clean up
+    currentAudio.dispatchEvent(new Event('ended'));
   }
 }

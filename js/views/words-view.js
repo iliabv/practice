@@ -1,5 +1,5 @@
 import { textToSpeech } from '../tts.js';
-import { playBlob } from '../audio-utils.js';
+import { playBlob, stopPlayback } from '../audio-utils.js';
 
 function formatStats(wordEntry) {
   const total = wordEntry.practices?.length || 0;
@@ -21,6 +21,18 @@ export function createWordsView({ state, els, ui }) {
   let cardActions = [];
   let focusedIndex = 0;
   let answeredCount = 0;
+  let playingBtn = null;
+  let playGen = 0;
+
+  function stopCardPlay() {
+    playGen++;
+    stopPlayback();
+    if (playingBtn) {
+      playingBtn.textContent = '\u25B6';
+      playingBtn.classList.remove('loading');
+    }
+    playingBtn = null;
+  }
 
   function updateFocus() {
     cardActions.forEach((c, i) => {
@@ -34,6 +46,7 @@ export function createWordsView({ state, els, ui }) {
   function renderCards() {
     const sortMode = state.get().wordsSortMode;
     const words = state.getSavedWordsSorted(sortMode);
+    if (playingBtn) stopCardPlay();
     const container = els.wordCardsContainer;
     container.innerHTML = '';
     cardActions = [];
@@ -194,10 +207,16 @@ export function createWordsView({ state, els, ui }) {
       playBtn.textContent = '\u25B6';
       playBtn.title = 'Play sentence';
 
-      let isPlaying = false;
       const playAudio = async () => {
-        if (isPlaying) return;
-        isPlaying = true;
+        // Stop self if currently playing/loading
+        if (playingBtn === playBtn) {
+          stopCardPlay();
+          return;
+        }
+        // Stop any other card's playback
+        if (playingBtn) stopCardPlay();
+        const gen = ++playGen;
+        playingBtn = playBtn;
         playBtn.classList.add('loading');
         playBtn.innerHTML = '<span class="spinner"></span>';
         try {
@@ -208,14 +227,18 @@ export function createWordsView({ state, els, ui }) {
             languageCode: wordEntry.languageCode,
             model: s.ttsModel,
           });
+          if (gen !== playGen) return;
+          playBtn.innerHTML = '<span class="icon-stop"></span>';
+          playBtn.classList.remove('loading');
           await playBlob(blob);
         } catch (err) {
+          if (gen !== playGen) return;
           console.error('TTS playback failed:', err);
           ui.showBanner(err.message || 'Playback failed');
         } finally {
+          if (gen === playGen) playingBtn = null;
           playBtn.textContent = '\u25B6';
           playBtn.classList.remove('loading');
-          isPlaying = false;
         }
       };
       playBtn.onclick = playAudio;
@@ -332,6 +355,7 @@ export function createWordsView({ state, els, ui }) {
       document.addEventListener('keydown', handleKeydown);
     },
     leave() {
+      if (playingBtn) stopCardPlay();
       els.wordsView.classList.add('hidden');
       document.removeEventListener('keydown', handleKeydown);
     },
