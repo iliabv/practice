@@ -413,6 +413,10 @@ main {
   outline-color: rgba(var(--overlay-rgb), 0.03);
 }
 
+.sentences-panel.text-hidden .sentence.active {
+  outline-color: rgba(var(--accent-rgb), 0.55);
+}
+
 .sentences-panel.text-hidden .sentence:hover {
   outline-color: var(--text-muted);
 }
