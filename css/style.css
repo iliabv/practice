@@ -838,7 +838,8 @@ main {
 }
 
 .word-card:hover {
-  background: rgba(var(--overlay-rgb), 0.06);
+  background: rgba(var(--overlay-rgb), 0.10);
+  border-left-color: var(--success);
 }
 
 .word-card-sentence {
@@ -983,8 +984,8 @@ main {
 
 .word-card.focused {
   border-color: rgba(var(--highlight-rgb), 0.12);
-  border-left-color: var(--accent);
-  background: rgba(var(--overlay-rgb), 0.06);
+  border-left-color: var(--success);
+  background: rgba(var(--overlay-rgb), 0.10);
 }
 
 .word-card-btn.loading {
