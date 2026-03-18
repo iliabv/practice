@@ -1,12 +1,14 @@
 import { textToSpeech } from '../tts.js';
 import { playBlob, stopPlayback } from '../audio-utils.js';
 
+const GRACE_MS = 6 * 60 * 60 * 1000; // treat cards due within 6h as ready
+
 function formatStats(wordEntry) {
   const total = wordEntry.practices?.length || 0;
   if (total === 0) return 'New';
   const correct = wordEntry.practices.filter(p => p.correct).length;
   const due = wordEntry.nextDue || 0;
-  const overdue = due <= Date.now();
+  const overdue = due <= Date.now() + GRACE_MS;
   const parts = [`${correct}/${total}`];
   if (overdue) {
     parts.push('due now');
@@ -64,7 +66,7 @@ export function createWordsView({ state, els, ui }) {
     }
 
     words.forEach(wordEntry => {
-      const isDue = !wordEntry.nextDue || wordEntry.nextDue <= Date.now();
+      const isDue = !wordEntry.nextDue || wordEntry.nextDue <= Date.now() + GRACE_MS;
       const card = document.createElement('div');
       card.className = 'word-card';
       if (sortMode === 'due') {
